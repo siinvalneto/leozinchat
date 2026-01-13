@@ -40,7 +40,7 @@
         }
 
         .message-container {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             opacity: 0;
             transform: translateX(-20px);
             animation: slideFadeIn 0.5s ease forwards;
@@ -49,12 +49,12 @@
         /* Estilos específicos para cada plataforma */
         .kick-message .message {
             background: rgba(23, 25, 28, 0.9);
-            border-left: 4px solid #53fc18; /* Verde do Kick */
+            border-left: 4px solid #53fc18;
         }
 
         .twitch-message .message {
             background: rgba(23, 25, 28, 0.9);
-            border-left: 4px solid #9146ff; /* Roxo da Twitch */
+            border-left: 4px solid #9146ff;
         }
 
         .event-message {
@@ -69,19 +69,19 @@
             animation: slideFadeInEvent 0.6s ease forwards;
         }
 
-        /* Estilos para username box com cores de plataforma */
+        /* Estilos para username box */
         .username-box {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             position: absolute;
-            top: -19px;
+            top: -15px;
             left: 0px;
-            padding: 8px 12px;
+            padding: 6px 10px;
             font-weight: 600;
             z-index: 2;
             white-space: nowrap;
-            max-width: 300px;
+            max-width: 90%;
             border-radius: 5px;
             backdrop-filter: blur(5px);
         }
@@ -96,26 +96,25 @@
             color: #fff;
         }
 
-        /* Estilo para avatar do usuário */
+        /* Avatar do usuário */
         .user-avatar {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             border: 2px solid rgba(255, 255, 255, 0.3);
             object-fit: cover;
         }
 
-        /* Estilo para função no canal */
+        /* Função no canal */
         .user-role {
-            padding: 2px 6px;
+            padding: 1px 5px;
             border-radius: 3px;
-            font-size: 0.75em;
+            font-size: 0.7em;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        /* Cores para diferentes funções */
         .role-broadcaster {
             background: linear-gradient(135deg, #e91916 0%, #ff6b6b 100%);
             color: white;
@@ -143,7 +142,7 @@
         }
 
         .badge {
-            height: 1.2em;
+            height: 1.1em;
             width: auto;
             vertical-align: middle;
             border-radius: 3px;
@@ -154,12 +153,6 @@
             width: auto;
             vertical-align: middle;
             border-radius: 2px;
-        }
-
-        .source-icon {
-            height: 1.1em;
-            width: auto;
-            vertical-align: middle;
         }
 
         .message {
@@ -210,34 +203,32 @@
             vertical-align: middle;
         }
 
-        /* Emojis personalizados para plataformas */
-        .platform-indicator {
+        /* Ícone da plataforma */
+        .platform-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 18px;
-            height: 18px;
-            margin-right: 4px;
-            font-size: 0.8em;
+            width: 16px;
+            height: 16px;
+            font-size: 0.7em;
+            font-weight: bold;
             border-radius: 3px;
         }
 
-        .kick-indicator {
+        .kick-icon {
             background: #53fc18;
             color: #000;
         }
 
-        .twitch-indicator {
+        .twitch-icon {
             background: #9146ff;
             color: #fff;
         }
 
-        /* Badges de canal */
         .channel-badges {
             display: inline-flex;
             align-items: center;
-            gap: 3px;
-            margin-left: 5px;
+            gap: 2px;
         }
 
         .donation {
@@ -257,60 +248,68 @@
 <script>
 	const chatContainer = document.getElementById('chat-container');
 	
-	// Parameters for Social Stream Ninja
 	const urlParams = new URLSearchParams(window.location.search);
 	const roomID = urlParams.get("session") || "7RUWtGBfz2";
 	const password = "false";
 	const featuredMode = false;
 
-	// Função para detectar a plataforma da mensagem
+	// Função para detectar a plataforma - FORMATO SOCIAL STREAM NINJA
 	function detectPlatform(data) {
-		// Verifica se há informação explícita de plataforma
+		// Formato padrão do Social Stream Ninja
 		if (data.type) {
-			if (data.type.toLowerCase().includes('kick')) return 'kick';
-			if (data.type.toLowerCase().includes('twitch')) return 'twitch';
+			if (data.type.includes('kick') || data.type === 'kick') return 'kick';
+			if (data.type.includes('twitch') || data.type === 'twitch') return 'twitch';
 		}
 		
-		// Verifica badges específicos de cada plataforma
-		if (data.chatbadges && Array.isArray(data.chatbadges)) {
-			for (const badge of data.chatbadges) {
-				if (badge.src && badge.src.includes('kick.com')) return 'kick';
-				if (badge.src && badge.src.includes('twitch.tv')) return 'twitch';
-				if (badge.src && badge.src.includes('badges.twitch')) return 'twitch';
+		// Verificar dados brutos se disponíveis
+		if (data.raw) {
+			try {
+				const rawData = typeof data.raw === 'string' ? JSON.parse(data.raw) : data.raw;
+				if (rawData.platform) {
+					if (rawData.platform.toLowerCase().includes('kick')) return 'kick';
+					if (rawData.platform.toLowerCase().includes('twitch')) return 'twitch';
+				}
+			} catch(e) {
+				console.log("Erro ao analisar dados brutos:", e);
 			}
 		}
 		
-		// Fallback baseado no tipo de evento
-		if (data.type === 'kick') return 'kick';
-		if (data.type === 'twitch') return 'twitch';
-		
-		// Default para Twitch
-		return 'twitch';
+		return 'twitch'; // default
 	}
 
-	// Função para obter a função do usuário no canal
+	// Função para obter a função do usuário - FORMATO SOCIAL STREAM NINJA
 	function getUserRole(data) {
-		// Verifica se há informação de função específica
-		if (data.role) {
-			return data.role.toLowerCase();
-		}
+		// Verificar propriedades do Social Stream Ninja
+		if (data.owner === true || data.isOwner === true) return 'broadcaster';
+		if (data.moderator === true || data.isMod === true) return 'moderator';
+		if (data.vip === true || data.isVIP === true) return 'vip';
+		if (data.subscriber === true || data.isSubscriber === true) return 'subscriber';
 		
-		// Detecta função baseada nos badges
+		// Verificar badges específicos
 		if (data.chatbadges && Array.isArray(data.chatbadges)) {
 			for (const badge of data.chatbadges) {
-				if (badge.src && badge.src.includes('broadcaster')) return 'broadcaster';
-				if (badge.src && badge.src.includes('moderator')) return 'moderator';
-				if (badge.src && badge.src.includes('vip')) return 'vip';
-				if (badge.src && badge.src.includes('subscriber')) return 'subscriber';
-				if (badge.src && badge.src.includes('sub')) return 'subscriber';
+				if (badge.type && badge.type.includes('broadcaster')) return 'broadcaster';
+				if (badge.type && badge.type.includes('moderator')) return 'moderator';
+				if (badge.type && badge.type.includes('vip')) return 'vip';
+				if (badge.type && badge.type.includes('subscriber') || badge.type && badge.type.includes('sub')) return 'subscriber';
 			}
 		}
 		
-		// Fallback baseado em outras propriedades
-		if (data.isBroadcaster) return 'broadcaster';
-		if (data.isMod) return 'moderator';
-		if (data.isVIP) return 'vip';
-		if (data.isSubscriber) return 'subscriber';
+		// Verificar dados brutos
+		if (data.raw) {
+			try {
+				const rawData = typeof data.raw === 'string' ? JSON.parse(data.raw) : data.raw;
+				if (rawData.badges) {
+					const badges = rawData.badges;
+					if (badges.broadcaster === "1") return 'broadcaster';
+					if (badges.moderator === "1") return 'moderator';
+					if (badges.vip === "1") return 'vip';
+					if (badges.subscriber) return 'subscriber';
+				}
+			} catch(e) {
+				// Ignorar erro
+			}
+		}
 		
 		return 'viewer';
 	}
@@ -337,25 +336,40 @@
 		}
 	}
 
-	// Função para obter a foto do usuário
+	// Função para obter a foto do usuário - FORMATO SOCIAL STREAM NINJA
 	function getUserAvatar(data) {
-		if (data.avatar && data.avatar.trim() !== '') {
-			return data.avatar;
+		// Tentar diferentes propriedades comuns
+		if (data.avatar && data.avatar.trim() !== '') return data.avatar;
+		if (data.profileImage && data.profileImage.trim() !== '') return data.profileImage;
+		if (data.userImage && data.userImage.trim() !== '') return data.userImage;
+		if (data.picture && data.picture.trim() !== '') return data.picture;
+		
+		// Verificar dados brutos
+		if (data.raw) {
+			try {
+				const rawData = typeof data.raw === 'string' ? JSON.parse(data.raw) : data.raw;
+				if (rawData.avatar) return rawData.avatar;
+				if (rawData.profile_image_url) return rawData.profile_image_url;
+				if (rawData.user_image) return rawData.user_image;
+			} catch(e) {
+				// Ignorar erro
+			}
 		}
 		
-		// Fallback para avatares padrão baseados na plataforma
+		// Avatar padrão baseado na plataforma
 		const platform = detectPlatform(data);
 		if (platform === 'kick') {
 			return 'https://kick.com/static/favicon.png';
 		} else {
-			return 'https://static-cdn.jtvnw.net/jtv_user_pictures/0e9ed7c2-7c42-4158-a8b9-c2c03578f7d5-profile_image-70x70.png';
+			return 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png';
 		}
 	}
 
-	// Função para obter badges do canal
+	// Função para obter badges do canal - FORMATO SOCIAL STREAM NINJA
 	function getChannelBadges(data) {
 		let channelBadgesHTML = '';
 		
+		// Verificar propriedades do Social Stream Ninja
 		if (data.channelBadges && Array.isArray(data.channelBadges)) {
 			data.channelBadges.forEach(badge => {
 				if (badge.src && badge.src.trim() !== '') {
@@ -364,10 +378,10 @@
 			});
 		}
 		
-		// Também verifica badges no formato antigo
+		// Verificar badges customizados nos chatbadges
 		if (data.chatbadges && Array.isArray(data.chatbadges)) {
 			data.chatbadges.forEach(badge => {
-				if (badge.src && badge.src.includes('channel') || badge.src.includes('custom')) {
+				if (badge.src && badge.src.includes('custom') || badge.src && badge.src.includes('channel')) {
 					channelBadgesHTML += `<img class='channel-badge' src='${badge.src}' alt='channel badge' title='${badge.title || ''}' />`;
 				}
 			});
@@ -376,17 +390,48 @@
 		return channelBadgesHTML;
 	}
 
-	// Função para obter a cor da plataforma
-	function getPlatformColor(platform) {
-		return platform === 'kick' ? '#53fc18' : '#9146ff';
+	// Função para processar badges de chat - FORMATO SOCIAL STREAM NINJA
+	function getChatBadges(data) {
+		let chatbadgesHTML = '';
+		
+		if (data.chatbadges && Array.isArray(data.chatbadges)) {
+			data.chatbadges.forEach(badge => {
+				if (typeof badge === "object" && badge.src) {
+					chatbadgesHTML += `<img class='badge' src='${badge.src}' alt='badge' title='${badge.title || ''}' />`;
+				} else if (typeof badge === "string") {
+					chatbadgesHTML += `<img class='badge' src='${badge}' alt='badge' />`;
+				}
+			});
+		}
+		
+		// Verificar dados brutos
+		if (data.raw && !data.chatbadges) {
+			try {
+				const rawData = typeof data.raw === 'string' ? JSON.parse(data.raw) : data.raw;
+				if (rawData.badges) {
+					const badges = rawData.badges;
+					for (const [type, version] of Object.entries(badges)) {
+						// Gerar URL da badge Twitch
+						if (type === 'subscriber') {
+							const months = parseInt(version) || 0;
+							chatbadgesHTML += `<img class='badge' src='https://static-cdn.jtvnw.net/badges/v1/${version}/${type}.png' alt='${type}' />`;
+						}
+					}
+				}
+			} catch(e) {
+				// Ignorar erro
+			}
+		}
+		
+		return chatbadgesHTML;
 	}
 
 	// Função para obter o ícone da plataforma
 	function getPlatformIcon(platform) {
 		if (platform === 'kick') {
-			return '<span class="platform-indicator kick-indicator">K</span>';
+			return '<span class="platform-icon kick-icon">K</span>';
 		} else {
-			return '<span class="platform-indicator twitch-indicator">T</span>';
+			return '<span class="platform-icon twitch-icon">T</span>';
 		}
 	}
 
@@ -449,13 +494,30 @@
 	}
 
 	function addMessageToOverlay(data) {
-		if (!data || !data.chatname || !data.chatmessage) {
-			console.error("Invalid message data", data);
+		console.log("Dados recebidos:", data); // DEBUG
+		
+		if (!data) {
+			console.error("Dados vazios");
 			return;
 		}
 
+		// Verificar se é uma mensagem de chat válida
+		if (!data.chatname && !data.username && !data.user) {
+			console.log("Ignorando mensagem sem nome de usuário:", data);
+			return;
+		}
+
+		const userName = data.chatname || data.username || data.user || 'Anonymous';
+		
+		if (!data.chatmessage && !data.message && !data.text) {
+			console.log("Ignorando mensagem sem texto:", data);
+			return;
+		}
+
+		const messageText = data.chatmessage || data.message || data.text || '';
+
 		// Skip meta-only messages
-		if (!data.chatname && data.meta) {
+		if (userName === 'Anonymous' && data.meta) {
 			return;
 		}
 
@@ -473,6 +535,7 @@
 		const roleText = getRoleText(userRole);
 		const userAvatar = getUserAvatar(data);
 		const channelBadges = getChannelBadges(data);
+		const chatBadges = getChatBadges(data);
 		
 		// Criar um novo contêiner de mensagem
 		const messageContainer = document.createElement('div');
@@ -481,32 +544,17 @@
 		const messageDiv = document.createElement('div');
 		messageDiv.classList.add('message');
 
-		// Processar badges de chat
-		let chatbadges = "";
-		if (data.chatbadges && Array.isArray(data.chatbadges)) {
-			data.chatbadges.forEach(badge => {
-				if (typeof badge === "object" && badge.type === "img" && badge.src) {
-					chatbadges += `<img class='badge' src='${badge.src}' alt='badge' title='${badge.title || ''}' />`;
-				} else if (badge.type === "svg" && badge.html) {
-					chatbadges += `<span class='badge svg'>${badge.html}</span>`;
-				}
-			});
-		}
-
-		// Adicionar ícone da plataforma
-		const platformIcon = getPlatformIcon(platform);
-
 		// Construir HTML da mensagem
 		messageDiv.innerHTML = `
 			<div class="username-box">
-				<img class="user-avatar" src="${userAvatar}" alt="${data.chatname}'s avatar" onerror="this.src='https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg'" />
-				${platformIcon}
-				<span>${data.chatname}</span>
+				<img class="user-avatar" src="${userAvatar}" alt="${userName}'s avatar" onerror="this.src='https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg'" />
+				${getPlatformIcon(platform)}
+				<span>${userName}</span>
 				${roleText ? `<span class="user-role ${roleClass}">${roleText}</span>` : ''}
-				${chatbadges ? `<span class="badges">${chatbadges}</span>` : ''}
+				${chatBadges ? `<span class="badges">${chatBadges}</span>` : ''}
 				${channelBadges ? `<span class="channel-badges">${channelBadges}</span>` : ''}
 			</div>
-			<div class="text">${data.chatmessage || ''}</div>
+			<div class="text">${messageText}</div>
 			${(data.donation || data.hasDonation) ? `<div class="donation">${(data.donation || data.hasDonation)}</div>` : ''}
 		`;
 
@@ -529,9 +577,14 @@
 	document.body.appendChild(iframe);
 
 	window.addEventListener("message", (event) => {
+		console.log("Mensagem recebida do iframe:", event.data); // DEBUG
 		if (event.source !== iframe.contentWindow) return;
 		if (event.data.dataReceived && event.data.dataReceived.overlayNinja) {
 			addMessageToOverlay(event.data.dataReceived.overlayNinja);
+		}
+		// Também tentar processar dados diretos
+		else if (event.data.chatname || event.data.username) {
+			addMessageToOverlay(event.data);
 		}
 	});
 
@@ -557,16 +610,21 @@
 			socketserver.send(JSON.stringify({"join":roomID, "out":3, "in":4}));
 		};
 		socketserver.addEventListener('message', function (event) {
+			console.log("Dados WebSocket:", event.data); // DEBUG
 			var resp = false
 			if (event.data){
-				var data = JSON.parse(event.data);
-				addMessageToOverlay(data);
-				if (data.get){
-					var ret = {};
-					ret.callback = {};
-					ret.callback.get = data.get
-					ret.callback.result = true;
-					socketserver.send(JSON.stringify(ret));
+				try {
+					var data = JSON.parse(event.data);
+					addMessageToOverlay(data);
+					if (data.get){
+						var ret = {};
+						ret.callback = {};
+						ret.callback.get = data.get
+						ret.callback.result = true;
+						socketserver.send(JSON.stringify(ret));
+					}
+				} catch(e) {
+					console.error("Erro ao processar dados WebSocket:", e);
 				}
 			}
 		});
@@ -584,7 +642,7 @@
 		while (chatContainer.children.length > maxMessages) {
 			chatContainer.removeChild(chatContainer.firstChild);
 		}
-	}, 600000); // 10 minutos
+	}, 600000);
 </script>
 </body>
 </html>
