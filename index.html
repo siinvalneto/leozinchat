@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>SSN Advanced Chat Overlay</title>
+<title>SSN Chat Overlay</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300..800&display=swap" rel="stylesheet">
 
@@ -14,22 +13,22 @@ html,body{
     padding:0;
     width:100%;
     height:100%;
-    overflow:hidden;
     background:transparent;
+    overflow:hidden;
     font-family:'Host Grotesk',sans-serif;
 }
 
-#chat-container{
+#chat{
     padding:20px;
     max-width:440px;
 }
 
 /* animações */
-.message-container{
+.msg{
     margin-bottom:12px;
-    animation:in .3s ease forwards;
+    animation:in .25s ease forwards;
 }
-.fade-out{
+.fade{
     animation:out .4s ease forwards;
 }
 
@@ -41,7 +40,7 @@ html,body{
     to{opacity:0;transform:translateY(-10px)}
 }
 
-.message{
+.box{
     background:rgba(25,25,25,.95);
     border-left:4px solid #888;
     padding:12px;
@@ -49,18 +48,17 @@ html,body{
     color:#fff;
 }
 
-/* plataformas */
-.twitch .message{border-color:#9146FF}
-.kick .message{border-color:#53FC18}
+.twitch .box{border-color:#9146FF}
+.kick .box{border-color:#53FC18}
 
-.user-info{
+.header{
     display:flex;
     align-items:center;
     gap:6px;
     margin-bottom:6px;
 }
 
-.username{
+.user{
     padding:4px 10px;
     border-radius:20px;
     font-weight:600;
@@ -68,49 +66,45 @@ html,body{
     background:#444;
 }
 
-/* cargos */
-.broadcaster .username{background:#ff0000}
-.moderator .username{background:#00ff00;color:#000}
-.vip .username{background:#ffd700;color:#000}
-.subscriber .username{background:#800080}
+.broadcaster .user{background:#ff0000}
+.moderator .user{background:#00ff00;color:#000}
+.vip .user{background:#ffd700;color:#000}
+.subscriber .user{background:#800080}
 
-/* badges */
 .badges{display:flex;gap:4px}
 .badge{width:18px;height:18px}
 
-/* logos */
-.platform-logo{
+.logo{
     width:18px;
     height:18px;
 }
-.message-text{font-size:14px;line-height:1.4}
+
+.text{font-size:14px;line-height:1.4}
 </style>
 </head>
 
 <body>
-<div id="chat-container"></div>
+<div id="chat"></div>
 
 <script>
-const chat=document.getElementById("chat-container");
+const chat=document.getElementById("chat");
 const params=new URLSearchParams(location.search);
+const ROOM=params.get("session")||"default";
+const DURATION=(params.get("duration")||12)*1000;
 
-const SESSION=params.get("session")||"default";
-const DURATION=(params.get("duration")||10)*1000;
-const PLATFORMS=params.get("platforms")||"both";
-
-const LOGOS={
+const LOGO={
     twitch:"https://static-cdn.jtvnw.net/ttv-boxart/Twitch.png",
     kick:"https://kick.com/favicon.ico"
 };
 
-function detectPlatform(d){
+function platform(d){
     return (d.platform||d.type||"twitch").toLowerCase().includes("kick")?"kick":"twitch";
 }
 
-function detectRole(badges=[]){
-    if(!Array.isArray(badges))return"viewer";
-    for(const b of badges){
-        const t=(b.type||"").toLowerCase();
+function role(b=[]){
+    if(!Array.isArray(b))return"viewer";
+    for(const x of b){
+        const t=(x.type||"").toLowerCase();
         if(t.includes("broadcaster"))return"broadcaster";
         if(t.includes("moderator")||t==="mod")return"moderator";
         if(t.includes("vip"))return"vip";
@@ -119,55 +113,64 @@ function detectRole(badges=[]){
     return"viewer";
 }
 
-function renderBadges(badges){
-    if(!Array.isArray(badges))return"";
+function badges(b=[]){
     return `<div class="badges">${
-        badges.map(b=>b.src?`<img class="badge" src="${b.src}">`:"").join("")
+        b.map(x=>x.src?`<img class="badge" src="${x.src}">`:"").join("")
     }</div>`;
 }
 
-function addMessage(d){
+function add(d){
     if(!d.chatmessage)return;
 
-    const platform=detectPlatform(d);
-    if(PLATFORMS!=="both" && platform!==PLATFORMS)return;
+    const p=platform(d);
+    const r=role(d.chatbadges);
+    const color=d.color||"#fff";
 
-    const role=detectRole(d.chatbadges);
-    const color=d.color||"#ffffff";
-
-    const el=document.createElement("div");
-    el.className=`message-container ${platform} ${role}`;
-
-    el.innerHTML=`
-    <div class="message">
-        <div class="user-info">
-            <img class="platform-logo" src="${LOGOS[platform]}">
-            <div class="username" style="color:${color}">
-                ${d.chatname||"User"}
-            </div>
-            ${renderBadges(d.chatbadges)}
+    const m=document.createElement("div");
+    m.className=`msg ${p} ${r}`;
+    m.innerHTML=`
+    <div class="box">
+        <div class="header">
+            <img class="logo" src="${LOGO[p]}">
+            <div class="user" style="color:${color}">${d.chatname||"User"}</div>
+            ${badges(d.chatbadges)}
         </div>
-        <div class="message-text">${d.chatmessage}</div>
+        <div class="text">${d.chatmessage}</div>
     </div>`;
 
-    chat.appendChild(el);
-    el.scrollIntoView({behavior:"smooth",block:"end"});
+    chat.appendChild(m);
+    m.scrollIntoView({behavior:"smooth"});
 
     setTimeout(()=>{
-        el.classList.add("fade-out");
-        setTimeout(()=>el.remove(),400);
+        m.classList.add("fade");
+        setTimeout(()=>m.remove(),400);
     },DURATION);
 }
 
-/* SSN iframe */
+/* WebSocket SSN */
+let ws;
+function connect(){
+    ws=new WebSocket("wss://io.socialstream.ninja");
+    ws.onopen=()=>ws.send(JSON.stringify({join:ROOM,out:3,in:4}));
+    ws.onmessage=e=>{
+        try{
+            const d=JSON.parse(e.data);
+            if(d.chatmessage)add(d);
+        }catch{}
+    };
+    ws.onclose=()=>setTimeout(connect,2000);
+}
+connect();
+
+/* iframe fallback */
 const iframe=document.createElement("iframe");
-iframe.src=`https://vdo.socialstream.ninja/?ln&push&novideo&noaudio&cleanoutput&room=${SESSION}`;
+iframe.src=`https://vdo.socialstream.ninja/?ln&push&novideo&noaudio&cleanoutput&room=${ROOM}`;
 iframe.style.cssText="width:0;height:0;position:fixed;left:-100px;top:-100px";
 document.body.appendChild(iframe);
 
 window.addEventListener("message",e=>{
     if(e.data?.dataReceived?.overlayNinja){
-        addMessage(e.data.dataReceived.overlayNinja);
+        add(e.data.dataReceived.overlayNinja);
     }
 });
 </script>
