@@ -1,178 +1,519 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSN Chat Overlay</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Overlay</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300..800&display=swap');
 
-<link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300..800&display=swap" rel="stylesheet">
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: rgba(10, 22, 40, 0);
+            font-family: 'Host Grotesk', sans-serif;
+        }
 
-<style>
-html,body{
-    margin:0;
-    padding:0;
-    width:100%;
-    height:100%;
-    background:transparent;
-    overflow:hidden;
-    font-family:'Host Grotesk',sans-serif;
-}
+        #chat-container {
+            padding: 25px;
+            max-width: 400px;
+            height: 100%;
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            margin: auto;
+            scroll-behavior: smooth;
+        }
 
-#chat{
-    padding:20px;
-    max-width:440px;
-}
+        #chat-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .small-overlay #chat-container {
+            transform: scale(0.6);
+        }
+        .large-overlay #chat-container {
+            transform: scale(1.2);
+        }
 
-/* animações */
-.msg{
-    margin-bottom:12px;
-    animation:in .25s ease forwards;
-}
-.fade{
-    animation:out .4s ease forwards;
-}
+        .message-container {
+            margin-bottom: 12px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: slideIn 0.3s ease forwards;
+        }
 
-@keyframes in{
-    from{opacity:0;transform:translateY(12px)}
-    to{opacity:1;transform:translateY(0)}
-}
-@keyframes out{
-    to{opacity:0;transform:translateY(-10px)}
-}
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-.box{
-    background:rgba(25,25,25,.95);
-    border-left:4px solid #888;
-    padding:12px;
-    border-radius:0 12px 12px 0;
-    color:#fff;
-}
+        /* Estilos base por plataforma */
+        .kick-message .message {
+            background: rgba(30, 30, 30, 0.95);
+            border-left: 4px solid #53FC18;
+        }
 
-.twitch .box{border-color:#9146FF}
-.kick .box{border-color:#53FC18}
+        .twitch-message .message {
+            background: rgba(30, 30, 30, 0.95);
+            border-left: 4px solid #9146FF;
+        }
 
-.header{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    margin-bottom:6px;
-}
+        .message {
+            padding: 15px 12px 12px 12px;
+            border-radius: 0 8px 8px 0;
+            position: relative;
+            word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            color: #fff;
+            min-height: 20px;
+        }
 
-.user{
-    padding:4px 10px;
-    border-radius:20px;
-    font-weight:600;
-    font-size:.9em;
-    background:#444;
-}
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            position: relative;
+            top: -8px;
+        }
 
-.broadcaster .user{background:#ff0000}
-.moderator .user{background:#00ff00;color:#000}
-.vip .user{background:#ffd700;color:#000}
-.subscriber .user{background:#800080}
+        .username-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
 
-.badges{display:flex;gap:4px}
-.badge{width:18px;height:18px}
+        /* Cores específicas para cada cargo */
+        .broadcaster .username-wrapper {
+            background: linear-gradient(135deg, #FF0000, #CC0000);
+            color: white;
+        }
 
-.logo{
-    width:18px;
-    height:18px;
-}
+        .moderator .username-wrapper {
+            background: linear-gradient(135deg, #00FF00, #00CC00);
+            color: #000;
+        }
 
-.text{font-size:14px;line-height:1.4}
-</style>
+        .vip .username-wrapper {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000;
+        }
+
+        .subscriber .username-wrapper {
+            background: linear-gradient(135deg, #800080, #4B0082);
+            color: white;
+        }
+
+        /* Cores padrão por plataforma */
+        .kick-message .username-wrapper {
+            background: linear-gradient(135deg, #53FC18, #00A308);
+            color: #000;
+        }
+
+        .twitch-message .username-wrapper {
+            background: linear-gradient(135deg, #9146FF, #5C16C5);
+            color: white;
+        }
+
+        .badges {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge {
+            height: 18px;
+            width: 18px;
+            object-fit: contain;
+            vertical-align: middle;
+        }
+
+        .platform-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .kick-icon {
+            background: #53FC18;
+            color: #000;
+        }
+
+        .twitch-icon {
+            background: #9146FF;
+            color: white;
+        }
+
+        .message-text {
+            font-size: 14px;
+            line-height: 1.4;
+            padding-left: 4px;
+        }
+
+        .message-text img {
+            height: 24px;
+            vertical-align: middle;
+            margin: -4px 2px;
+        }
+
+        /* Eventos */
+        .event-message {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #ffd700;
+            color: #ffd700;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
 </head>
-
 <body>
-<div id="chat"></div>
-
+    <div id="chat-container"></div>
 <script>
-const chat=document.getElementById("chat");
-const params=new URLSearchParams(location.search);
-const ROOM=params.get("session")||"default";
-const DURATION=(params.get("duration")||12)*1000;
+	const chatContainer = document.getElementById('chat-container');
+	
+	// Mapeamento de badges para cada plataforma
+	const BADGE_URLS = {
+		twitch: {
+			broadcaster: 'https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1',
+			moderator: 'https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1',
+			vip: 'https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/1',
+			subscriber: 'https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/1',
+			premium: 'https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/1'
+		},
+		kick: {
+			broadcaster: 'https://dbxmjjzl5pc1g.cloudfront.net/46272b89-6c2c-4f57-8129-6b08c56825c4/broadcaster.png',
+			moderator: 'https://dbxmjjzl5pc1g.cloudfront.net/46272b89-6c2c-4f57-8129-6b08c56825c4/moderator.png',
+			vip: 'https://dbxmjjzl5pc1g.cloudfront.net/46272b89-6c2c-4f57-8129-6b08c56825c4/vip.png',
+			subscriber: 'https://dbxmjjzl5pc1g.cloudfront.net/46272b89-6c2c-4f57-8129-6b08c56825c4/subscriber.png'
+		}
+	};
 
-const LOGO={
-    twitch:"https://static-cdn.jtvnw.net/ttv-boxart/Twitch.png",
-    kick:"https://kick.com/favicon.ico"
-};
+	// Parameters
+	const urlParams = new URLSearchParams(window.location.search);
+	const roomID = urlParams.get("session") || "7RUWtGBfz2";
 
-function platform(d){
-    return (d.platform||d.type||"twitch").toLowerCase().includes("kick")?"kick":"twitch";
-}
+	// Função para debug - mostra os dados recebidos
+	function debugData(data) {
+		console.log('Dados recebidos:', JSON.stringify(data, null, 2));
+		console.log('Badges:', data.chatbadges);
+		console.log('Tipo:', data.type);
+	}
 
-function role(b=[]){
-    if(!Array.isArray(b))return"viewer";
-    for(const x of b){
-        const t=(x.type||"").toLowerCase();
-        if(t.includes("broadcaster"))return"broadcaster";
-        if(t.includes("moderator")||t==="mod")return"moderator";
-        if(t.includes("vip"))return"vip";
-        if(t.includes("subscriber")||t==="sub")return"subscriber";
-    }
-    return"viewer";
-}
+	// Função simplificada para detectar plataforma
+	function detectPlatform(data) {
+		// Primeiro, verificar se há informação explícita
+		if (data.type) {
+			const type = data.type.toLowerCase();
+			if (type.includes('kick')) return 'kick';
+			if (type.includes('twitch')) return 'twitch';
+		}
+		
+		// Se não, tentar detectar pelas badges
+		if (data.chatbadges && Array.isArray(data.chatbadges)) {
+			for (const badge of data.chatbadges) {
+				if (badge && typeof badge === 'object') {
+					if (badge.src && badge.src.includes('twitch')) return 'twitch';
+					if (badge.src && badge.src.includes('kick')) return 'kick';
+					if (badge.type && badge.type.includes('twitch')) return 'twitch';
+					if (badge.type && badge.type.includes('kick')) return 'kick';
+				}
+			}
+		}
+		
+		// Default para twitch
+		return 'twitch';
+	}
 
-function badges(b=[]){
-    return `<div class="badges">${
-        b.map(x=>x.src?`<img class="badge" src="${x.src}">`:"").join("")
-    }</div>`;
-}
+	// Função para detectar o cargo do usuário
+	function detectUserRole(data) {
+		if (!data.chatbadges || !Array.isArray(data.chatbadges)) return 'viewer';
+		
+		// Procurar por badges específicas
+		for (const badge of data.chatbadges) {
+			if (badge && typeof badge === 'object') {
+				const badgeType = (badge.type || '').toLowerCase();
+				const badgeSrc = (badge.src || '').toLowerCase();
+				
+				if (badgeType.includes('broadcaster') || badgeSrc.includes('broadcaster')) {
+					return 'broadcaster';
+				}
+				if (badgeType.includes('moderator') || badgeSrc.includes('moderator') || badgeType.includes('mod')) {
+					return 'moderator';
+				}
+				if (badgeType.includes('vip')) {
+					return 'vip';
+				}
+				if (badgeType.includes('subscriber') || badgeSrc.includes('subscriber') || badgeType.includes('sub')) {
+					return 'subscriber';
+				}
+			}
+		}
+		
+		return 'viewer';
+	}
 
-function add(d){
-    if(!d.chatmessage)return;
+	// Função para processar badges
+	function getBadgesHtml(data, platform) {
+		if (!data.chatbadges || !Array.isArray(data.chatbadges) || data.chatbadges.length === 0) {
+			return '';
+		}
+		
+		let badgesHtml = '';
+		const roles = [];
+		
+		// Primeiro, identificar os cargos principais
+		const role = detectUserRole(data);
+		if (role !== 'viewer') {
+			const badgeUrl = BADGE_URLS[platform] && BADGE_URLS[platform][role];
+			if (badgeUrl) {
+				badgesHtml += `<img src="${badgeUrl}" alt="${role}" class="badge" title="${role}" />`;
+			}
+		}
+		
+		// Adicionar outras badges
+		data.chatbadges.forEach(badge => {
+			if (badge && typeof badge === 'object') {
+				// Se já tem badge de cargo, pular badges duplicados
+				const badgeType = (badge.type || '').toLowerCase();
+				if (['broadcaster', 'moderator', 'vip', 'subscriber'].some(r => badgeType.includes(r))) {
+					return;
+				}
+				
+				// Adicionar outras badges
+				if (badge.src) {
+					badgesHtml += `<img src="${badge.src}" alt="${badge.type || 'badge'}" class="badge" title="${badge.type || 'badge'}" />`;
+				}
+			}
+		});
+		
+		return badgesHtml ? `<div class="badges">${badgesHtml}</div>` : '';
+	}
 
-    const p=platform(d);
-    const r=role(d.chatbadges);
-    const color=d.color||"#fff";
+	// Função para aplicar tamanho
+	function applyOverlaySize() {
+		const size = urlParams.get('size');
+		document.body.classList.remove("small-overlay", "large-overlay");
+		if (size === "small") {
+			document.body.classList.add("small-overlay");
+		} else if (size === "large") {
+			document.body.classList.add("large-overlay");
+		}
+	}
 
-    const m=document.createElement("div");
-    m.className=`msg ${p} ${r}`;
-    m.innerHTML=`
-    <div class="box">
-        <div class="header">
-            <img class="logo" src="${LOGO[p]}">
-            <div class="user" style="color:${color}">${d.chatname||"User"}</div>
-            ${badges(d.chatbadges)}
-        </div>
-        <div class="text">${d.chatmessage}</div>
-    </div>`;
+	// Função principal para adicionar mensagens
+	function addMessageToOverlay(data) {
+		debugData(data); // Para debug
+		
+		if (!data || !data.chatmessage) return;
+		
+		// Verificar se é um evento
+		if (data.type && ['follow', 'subscription', 'donation'].includes(data.type)) {
+			addEventToOverlay(data);
+			return;
+		}
+		
+		const username = data.chatname || 'Anonymous';
+		const message = data.chatmessage || '';
+		const platform = detectPlatform(data);
+		const userRole = detectUserRole(data);
+		
+		// Criar container da mensagem
+		const messageContainer = document.createElement('div');
+		messageContainer.className = `message-container ${platform}-message ${userRole}`;
+		
+		// Obter badges HTML
+		const badgesHtml = getBadgesHtml(data, platform);
+		
+		// Criar ícone da plataforma
+		const platformIcon = platform === 'kick' 
+			? '<div class="platform-icon kick-icon">K</div>'
+			: '<div class="platform-icon twitch-icon">T</div>';
+		
+		// Montar HTML da mensagem
+		messageContainer.innerHTML = `
+			<div class="message">
+				<div class="user-info">
+					${platformIcon}
+					<div class="username-wrapper">
+						<span>${username}</span>
+					</div>
+					${badgesHtml}
+				</div>
+				<div class="message-text">${message}</div>
+			</div>
+		`;
+		
+		// Adicionar ao chat
+		chatContainer.appendChild(messageContainer);
+		
+		// Limitar número de mensagens
+		const maxMessages = 50;
+		while (chatContainer.children.length > maxMessages) {
+			chatContainer.removeChild(chatContainer.firstChild);
+		}
+		
+		// Scroll automático
+		messageContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+	}
 
-    chat.appendChild(m);
-    m.scrollIntoView({behavior:"smooth"});
+	// Função para eventos
+	function addEventToOverlay(data) {
+		const eventDiv = document.createElement('div');
+		eventDiv.className = 'event-message';
+		
+		let eventText = '';
+		const username = data.chatname || 'Someone';
+		
+		switch(data.type) {
+			case 'follow':
+				eventText = `${username} just followed!`;
+				break;
+			case 'subscription':
+				eventText = `${username} subscribed!`;
+				break;
+			case 'donation':
+				eventText = `${username} donated ${data.amount || ''}!`;
+				break;
+			default:
+				eventText = `${username}: ${data.chatmessage || ''}`;
+		}
+		
+		eventDiv.textContent = eventText;
+		chatContainer.appendChild(eventDiv);
+	}
 
-    setTimeout(()=>{
-        m.classList.add("fade");
-        setTimeout(()=>m.remove(),400);
-    },DURATION);
-}
+	// Configurar WebSocket
+	function setupWebSocket() {
+		const serverURL = urlParams.has("localserver") 
+			? "ws://127.0.0.1:3000" 
+			: "wss://io.socialstream.ninja";
+		
+		let ws;
+		let reconnectAttempts = 0;
+		
+		function connect() {
+			try {
+				ws = new WebSocket(serverURL);
+				
+				ws.onopen = function() {
+					console.log('WebSocket connected');
+					reconnectAttempts = 0;
+					ws.send(JSON.stringify({
+						join: roomID,
+						out: 3,
+						in: 4
+					}));
+				};
+				
+				ws.onmessage = function(event) {
+					try {
+						const data = JSON.parse(event.data);
+						console.log('Mensagem recebida:', data);
+						
+						// Verificar estrutura dos dados
+						if (data.chatmessage || data.type) {
+							addMessageToOverlay(data);
+						}
+						
+						// Responder a requisições
+						if (data.get) {
+							ws.send(JSON.stringify({
+								callback: {
+									get: data.get,
+									result: true
+								}
+							}));
+						}
+					} catch (e) {
+						console.error('Erro ao processar mensagem:', e);
+					}
+				};
+				
+				ws.onclose = function() {
+					console.log('WebSocket disconnected, reconnecting...');
+					reconnectAttempts++;
+					const delay = Math.min(1000 * reconnectAttempts, 5000);
+					setTimeout(connect, delay);
+				};
+				
+				ws.onerror = function(error) {
+					console.error('WebSocket error:', error);
+				};
+				
+			} catch (error) {
+				console.error('Erro ao conectar WebSocket:', error);
+				setTimeout(connect, 5000);
+			}
+		}
+		
+		connect();
+	}
 
-/* WebSocket SSN */
-let ws;
-function connect(){
-    ws=new WebSocket("wss://io.socialstream.ninja");
-    ws.onopen=()=>ws.send(JSON.stringify({join:ROOM,out:3,in:4}));
-    ws.onmessage=e=>{
-        try{
-            const d=JSON.parse(e.data);
-            if(d.chatmessage)add(d);
-        }catch{}
-    };
-    ws.onclose=()=>setTimeout(connect,2000);
-}
-connect();
+	// Inicializar
+	document.addEventListener('DOMContentLoaded', function() {
+		applyOverlaySize();
+		
+		// Adicionar algumas mensagens de teste
+		setTimeout(() => {
+			// Mensagem de teste Twitch
+			addMessageToOverlay({
+				chatname: "TwitchUser",
+				chatmessage: "Olá do Twitch!",
+				type: "twitch",
+				chatbadges: [
+					{ type: "broadcaster", src: BADGE_URLS.twitch.broadcaster }
+				]
+			});
+			
+			// Mensagem de teste Kick
+			setTimeout(() => {
+				addMessageToOverlay({
+					chatname: "KickUser",
+					chatmessage: "Olá do Kick!",
+					type: "kick",
+					chatbadges: [
+						{ type: "vip", src: BADGE_URLS.kick.vip }
+					]
+				});
+			}, 1000);
+		}, 1000);
+		
+		// Iniciar WebSocket se solicitado
+		if (urlParams.has("server") || urlParams.has("server2") || urlParams.has("localserver")) {
+			setupWebSocket();
+		}
+	});
 
-/* iframe fallback */
-const iframe=document.createElement("iframe");
-iframe.src=`https://vdo.socialstream.ninja/?ln&push&novideo&noaudio&cleanoutput&room=${ROOM}`;
-iframe.style.cssText="width:0;height:0;position:fixed;left:-100px;top:-100px";
-document.body.appendChild(iframe);
+	// Também suportar o método iframe antigo
+	const iframe = document.createElement("iframe");
+	iframe.src = `https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&push&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room=${roomID}`;
+	iframe.style.cssText = "width: 0px; height: 0px; position: fixed; left: -100px; top: -100px;";
+	document.body.appendChild(iframe);
 
-window.addEventListener("message",e=>{
-    if(e.data?.dataReceived?.overlayNinja){
-        add(e.data.dataReceived.overlayNinja);
-    }
-});
+	window.addEventListener("message", (event) => {
+		console.log('Mensagem do iframe:', event.data);
+		if (event.data.dataReceived && event.data.dataReceived.overlayNinja) {
+			addMessageToOverlay(event.data.dataReceived.overlayNinja);
+		}
+	});
 </script>
 </body>
 </html>
