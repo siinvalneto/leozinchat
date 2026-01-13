@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Overlay - Twitch & Kick</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Inter:wght@300;400;500&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: transparent;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Efeito de aura DBZ sutil */
+        #aura-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(100, 150, 255, 0.03) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255, 100, 100, 0.03) 0%, transparent 50%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        #chat-container {
+            padding: 20px 15px;
+            max-width: 400px;
+            height: 100%;
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            margin: auto;
+            scroll-behavior: smooth;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #chat-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Tamanhos do overlay */
+        .small-overlay #chat-container {
+            transform: scale(0.65);
+            transform-origin: top center;
+        }
+        .large-overlay #chat-container {
+            transform: scale(1.25);
+            transform-origin: top center;
+        }
+
+        /* Container de mensagem - separação clara */
+        .message-container {
+            animation: messageAppear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes messageAppear {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mensagens de evento - estilo DBZ */
+        .event-message {
+            background: linear-gradient(135deg, 
+                rgba(255, 100, 0, 0.9) 0%, 
+                rgba(255, 200, 0, 0.9) 100%);
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 800;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-size: 0.85em;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 20px rgba(255, 100, 0, 0.6),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            font-family: 'Orbitron', sans-serif;
+            animation: eventPowerUp 0.8s ease forwards;
+            margin-bottom: 8px;
+        }
+
+        .event-message::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to bottom right,
+                transparent 30%,
+                rgba(255, 255, 255, 0.1) 50%,
+                transparent 70%
+            );
+            animation: shine 3s infinite linear;
+            transform: rotate(30deg);
+        }
+
+        @keyframes eventPowerUp {
+            0% {
+                opacity: 0;
+                transform: scale(0.7) translateY(20px);
+            }
+            60% {
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        @keyframes shine {
+            0% { transform: rotate(30deg) translateX(-100%); }
+            100% { transform: rotate(30deg) translateX(100%); }
+        }
+
+        /* Container do usuário */
+        .user-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        /* Badges à esquerda */
+        .badges-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+            min-width: 24px;
+        }
+
+        .badge {
+            height: 20px;
+            width: 20px;
+            border-radius: 4px;
+            object-fit: contain;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px;
+        }
+
+        /* Nome de usuário */
+        .username-box {
+            padding: 6px 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 0.85em;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 250px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Cores específicas por plataforma */
+        .username-box.twitch {
+            background: linear-gradient(135deg, #9146FF 0%, #5A3A8C 100%);
+            border-left: 3px solid #FFCC00;
+        }
+
+        .username-box.kick {
+            background: linear-gradient(135deg, #53FC18 0%, #2A7A0F 100%);
+            border-left: 3px solid #FFFFFF;
+        }
+
+        .username-box::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.3), 
+                transparent);
+        }
+
+        .source-icon {
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        /* Caixa de mensagem */
+        .message-bubble {
+            background: rgba(23, 25, 35, 0.92);
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: #F0F0F0;
+            margin-left: 34px; /* Alinhar com badges */
+            position: relative;
+            word-wrap: break-word;
+            border-left: 3px solid;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Cores da borda por plataforma */
+        .message-bubble.twitch {
+            border-left-color: #9146FF;
+        }
+
+        .message-bubble.kick {
+            border-left-color: #53FC18;
+        }
+
+        .message-bubble::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.02) 50%, 
+                transparent 100%);
+            pointer-events: none;
+        }
+
+        .text {
+            font-size: clamp(0.92em, 2.5vw, 1em);
+            line-height: 1.5;
+            color: #E8E8E8;
+        }
+
+        /* Emotes maiores para Twitch */
+        .text img {
+            max-width: 32px;
+            max-height: 32px;
+            vertical-align: middle;
+            margin: 0 2px;
+            transition: transform 0.2s ease;
+        }
+
+        .text img:hover {
+            transform: scale(1.1);
+        }
+
+        /* Contador de mensagens consecutivas */
+        .consecutive-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #FFCC00, #FF9900);
+            color: #000;
+            font-size: 0.7em;
+            font-weight: 900;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            font-family: 'Orbitron', sans-serif;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        /* Efeito de KI para novas mensagens */
+        .ki-effect {
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 12px;
+            background: radial-gradient(circle at center, 
+                rgba(255, 204, 0, 0.3) 0%, 
+                transparent 70%);
+            animation: kiPulse 0.6s ease-out;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes kiPulse {
+            0% { opacity: 0.8; transform: scale(0.95); }
+            100% { opacity: 0; transform: scale(1.05); }
+        }
+
+        /* Indicador de plataforma */
+        .platform-indicator {
+            position: absolute;
+            bottom: -6px;
+            right: 10px;
+            font-size: 0.6em;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .platform-indicator.twitch {
+            background: #9146FF;
+            color: white;
+        }
+
+        .platform-indicator.kick {
+            background: #53FC18;
+            color: #000;
+        }
+
+        /* Animação para mensagens de doação */
+        .donation-message {
+            animation: donationGlow 2s infinite alternate;
+        }
+
+        @keyframes donationGlow {
+            from { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
+            to { box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); }
+        }
+
+        /* Efeito de digitação */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px 16px;
+            margin-left: 34px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #9146FF;
+            animation: typingBounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="aura-effect"></div>
+    <div id="chat-container"></div>
+    
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        let lastSender = null;
+        let lastMessageContainer = null;
+        let consecutiveCount = 1;
+        const messageHistory = new Map(); // Armazenar histórico por usuário
+
+        // Configurações do overlay
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomID = urlParams.get("session") || "default";
+        const overlaySize = urlParams.get("size") || "normal";
+        const maxMessages = parseInt(urlParams.get("max")) || 100;
+        const showPlatform = urlParams.get("platform") !== "false";
+
+        // Aplicar tamanho do overlay
+        function applyOverlaySize() {
+            document.body.classList.remove("small-overlay", "large-overlay");
+            if (overlaySize === "small") {
+                document.body.classList.add("small-overlay");
+            } else if (overlaySize === "large") {
+                document.body.classList.add("large-overlay");
+            }
+        }
+
+        // Gerenciar limite de mensagens
+        function manageMessageLimit() {
+            const messages = chatContainer.children;
+            if (messages.length > maxMessages) {
+                // Remover as mensagens mais antigas, mas manter eventos recentes
+                let messagesToRemove = messages.length - maxMessages;
+                for (let i = 0; i < messagesToRemove; i++) {
+                    if (messages[0] && !messages[0].classList.contains('event-message')) {
+                        chatContainer.removeChild(messages[0]);
+                    } else {
+                        // Pular evento, remover próxima mensagem
+                        if (messages[1]) chatContainer.removeChild(messages[1]);
+                        i--;
+                    }
+                }
+            }
+        }
+
+        // Efeito de aura animada
+        function animateAura() {
+            const aura = document.getElementById('aura-effect');
+            let angle = 0;
+            
+            function updateAura() {
+                angle = (angle + 0.2) % 360;
+                const x1 = 20 + Math.sin(angle * Math.PI / 180) * 10;
+                const y1 = 80 + Math.cos(angle * Math.PI / 180) * 10;
+                const x2 = 80 + Math.cos(angle * Math.PI / 180) * 10;
+                const y2 = 20 + Math.sin(angle * Math.PI / 180) * 10;
+                
+                aura.style.background = `
+                    radial-gradient(circle at ${x1}% ${y1}%, 
+                        rgba(100, 150, 255, 0.05) 0%, 
+                        transparent 50%),
+                    radial-gradient(circle at ${x2}% ${y2}%, 
+                        rgba(255, 100, 100, 0.05) 0%, 
+                        transparent 50%)
+                `;
+                
+                requestAnimationFrame(updateAura);
+            }
+            
+            updateAura();
+        }
+
+        // Adicionar evento ao overlay
+        function addEventToOverlay(data) {
+            const eventDiv = document.createElement('div');
+            eventDiv.classList.add('event-message');
+            
+            let eventText = '';
+            let platformClass = data.platform || data.type || 'twitch';
+            
+            switch(data.eventType) {
+                case 'follow':
+                    eventText = `🎉 ${data.chatname} ACABOU DE SEGUIR!`;
+                    break;
+                case 'subscription':
+                    eventText = `⭐ ${data.chatname} SE INSCREVEU!`;
+                    if (data.tier) eventText += ` (Tier ${data.tier})`;
+                    break;
+                case 'resub':
+                    eventText = `🔥 ${data.chatname} ${data.months} MESES INSCRITO!`;
+                    break;
+                case 'gift':
+                    eventText = `🎁 ${data.chatname} PRESENTEOU ${data.amount} SUBS!`;
+                    break;
+                case 'raid':
+                    eventText = `⚡ ${data.from} ESTÁ RAIDANDO COM ${data.viewers} VIEWERS!`;
+                    break;
+                case 'host':
+                    eventText = `📡 ${data.from} ESTÁ HOSTEANDO COM ${data.viewers} VIEWERS!`;
+                    break;
+                case 'donation':
+                    eventText = `💰 ${data.chatname} DOOU ${data.amount}!`;
+                    break;
+                case 'cheer':
+                    eventText = `🎊 ${data.chatname} DEU ${data.bits} BITS!`;
+                    break;
+                default:
+                    eventText = `${data.chatname}: ${data.message}`;
+            }
+            
+            eventDiv.textContent = eventText;
+            chatContainer.appendChild(eventDiv);
+            
+            // Somente para doações, adicionar classe especial
+            if (data.eventType === 'donation') {
+                eventDiv.classList.add('donation-message');
+            }
+        }
+
+        // Criar badges
+        function createBadges(badgesData) {
+            const badgesContainer = document.createElement('div');
+            badgesContainer.className = 'badges-left';
+            
+            if (badgesData && Array.isArray(badgesData)) {
+                badgesData.slice(0, 3).forEach(badge => {
+                    if (badge.url) {
+                        const badgeImg = document.createElement('img');
+                        badgeImg.className = 'badge';
+                        badgeImg.src = badge.url;
+                        badgeImg.alt = badge.name || 'Badge';
+                        badgeImg.onerror = () => badgeImg.remove();
+                        badgesContainer.appendChild(badgeImg);
+                    }
+                });
+            }
+            
+            return badgesContainer;
+        }
+
+        // Adicionar mensagem ao overlay
+        function addMessageToOverlay(data) {
+            if (!data || !data.message) return;
+            
+            // Verificar se é um evento
+            if (data.eventType) {
+                addEventToOverlay(data);
+                manageMessageLimit();
+                return;
+            }
+            
+            const platform = data.platform || 'twitch';
+            const sender = data.username || data.chatname || 'Anônimo';
+            const message = data.message || '';
+            const badges = data.badges || [];
+            
+            // Verificar se é o mesmo remetente da última mensagem
+            const isSameSender = lastSender === sender;
+            lastSender = sender;
+            
+            if (isSameSender && lastMessageContainer && consecutiveCount < 20) {
+                // Incrementar contador consecutivo
+                consecutiveCount++;
+                
+                // Atualizar contador
+                let countElement = lastMessageContainer.querySelector('.consecutive-count');
+                if (!countElement) {
+                    countElement = document.createElement('div');
+                    countElement.className = 'consecutive-count';
+                    lastMessageContainer.appendChild(countElement);
+                }
+                countElement.textContent = consecutiveCount;
+                
+                // Adicionar nova linha à mensagem existente
+                const textElement = lastMessageContainer.querySelector('.text');
+                if (textElement) {
+                    const newLine = document.createElement('div');
+                    newLine.style.marginTop = '4px';
+                    newLine.innerHTML = message;
+                    textElement.appendChild(newLine);
+                }
+                
+                // Efeito KI
+                const kiEffect = document.createElement('div');
+                kiEffect.className = 'ki-effect';
+                lastMessageContainer.appendChild(kiEffect);
+                setTimeout(() => kiEffect.remove(), 600);
+                
+            } else {
+                // Nova mensagem de um remetente diferente
+                consecutiveCount = 1;
+                
+                // Criar container da mensagem
+                const messageContainer = document.createElement('div');
+                messageContainer.className = 'message-container';
+                
+                // Container do usuário
+                const userContainer = document.createElement('div');
+                userContainer.className = 'user-container';
+                
+                // Badges
+                const badgesContainer = createBadges(badges);
+                userContainer.appendChild(badgesContainer);
+                
+                // Nome de usuário
+                const usernameBox = document.createElement('div');
+                usernameBox.className = `username-box ${platform}`;
+                
+                // Ícone da plataforma
+                const platformIcon = document.createElement('img');
+                platformIcon.className = 'source-icon';
+                platformIcon.src = platform === 'kick' 
+                    ? 'https://socialstream.ninja/sources/images/kick.png'
+                    : 'https://socialstream.ninja/sources/images/twitch.png';
+                platformIcon.alt = platform;
+                platformIcon.onerror = () => platformIcon.remove();
+                
+                usernameBox.appendChild(platformIcon);
+                usernameBox.appendChild(document.createTextNode(sender));
+                
+                // Adicionar contador se for maior que 1
+                if (consecutiveCount > 1) {
+                    const countElement = document.createElement('div');
+                    countElement.className = 'consecutive-count';
+                    countElement.textContent = consecutiveCount;
+                    usernameBox.appendChild(countElement);
+                }
+                
+                userContainer.appendChild(usernameBox);
+                messageContainer.appendChild(userContainer);
+                
+                // Bolha de mensagem
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `message-bubble ${platform}`;
+                
+                const textElement = document.createElement('div');
+                textElement.className = 'text';
+                textElement.innerHTML = message;
+                messageBubble.appendChild(textElement);
+                
+                // Indicador de plataforma
+                if (showPlatform) {
+                    const platformIndicator = document.createElement('div');
+                    platformIndicator.className = `platform-indicator ${platform}`;
+                    platformIndicator.textContent = platform === 'kick' ? 'KICK' : 'TWITCH';
+                    messageBubble.appendChild(platformIndicator);
+                }
+                
+                messageContainer.appendChild(messageBubble);
+                chatContainer.appendChild(messageContainer);
+                
+                lastMessageContainer = messageContainer;
+                
+                // Efeito KI para nova mensagem
+                const kiEffect = document.createElement('div');
+                kiEffect.className = 'ki-effect';
+                messageContainer.appendChild(kiEffect);
+                setTimeout(() => kiEffect.remove(), 600);
+                
+                // Manter histórico
+                if (!messageHistory.has(sender)) {
+                    messageHistory.set(sender, []);
+                }
+                messageHistory.get(sender).push({
+                    message: message,
+                    time: Date.now(),
+                    platform: platform
+                });
+                
+                // Limitar histórico por usuário
+                if (messageHistory.get(sender).length > 10) {
+                    messageHistory.get(sender).shift();
+                }
+            }
+            
+            // Gerenciar limite de mensagens
+            manageMessageLimit();
+            
+            // Auto-scroll
+            setTimeout(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 100);
+        }
+
+        // Simular mensagens para teste (remover em produção)
+        function simulateMessages() {
+            const platforms = ['twitch', 'kick'];
+            const users = [
+                { name: 'GokuSSJ', platform: 'twitch' },
+                { name: 'VegetaPR', platform: 'kick' },
+                { name: 'FreezaFinal', platform: 'twitch' },
+                { name: 'CellPerfect', platform: 'kick' },
+                { name: 'BuuKid', platform: 'twitch' }
+            ];
+            
+            const messages = [
+                "KAMEHAMEHA! 🌀",
+                "ISSO É PODER DE UM SAYAJIN! 💥",
+                "MINHA FORÇA É MAIOR QUE 8000! 📈",
+                "VOU DESTRUIR ESSE PLANETA! 🌍",
+                "SSJ3 É INCRÍVEL! ⚡",
+                "ULTRA INSTINCT ATIVADO! 👁️",
+                "FINAL FLASH! ☄️",
+                "BIG BANG ATTACK! 💫",
+                "GALICK GUN! 🔫",
+                "SPIRIT BOMB! 🌟"
+            ];
+            
+            // Mensagem inicial
+            setTimeout(() => {
+                addMessageToOverlay({
+                    eventType: 'subscription',
+                    chatname: 'GohanUltimate',
+                    platform: 'twitch'
+                });
+            }, 1000);
+            
+            // Simular mensagens periódicas
+            let messageCount = 0;
+            const interval = setInterval(() => {
+                if (messageCount >= 15) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                const user = users[Math.floor(Math.random() * users.length)];
+                const message = messages[Math.floor(Math.random() * messages.length)];
+                
+                addMessageToOverlay({
+                    username: user.name,
+                    platform: user.platform,
+                    message: message,
+                    badges: [
+                        { url: 'https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1', name: 'sub' },
+                        { url: 'https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1', name: 'vip' }
+                    ]
+                });
+                
+                messageCount++;
+                
+                // Evento aleatório
+                if (Math.random() > 0.8 && messageCount < 10) {
+                    setTimeout(() => {
+                        const events = ['follow', 'cheer', 'raid'];
+                        const event = events[Math.floor(Math.random() * events.length)];
+                        
+                        addMessageToOverlay({
+                            eventType: event,
+                            chatname: user.name,
+                            platform: user.platform,
+                            ...(event === 'cheer' && { bits: Math.floor(Math.random() * 100) + 10 }),
+                            ...(event === 'raid' && { viewers: Math.floor(Math.random() * 50) + 10 })
+                        });
+                    }, 500);
+                }
+                
+            }, 2000);
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            applyOverlaySize();
+            animateAura();
+            
+            // Modo de teste se parâmetro test=true
+            if (urlParams.get('test') === 'true') {
+                simulateMessages();
+            }
+            
+            // Configuração para Social Stream Ninja
+            const roomID = urlParams.get("session") || "7RUWtGBfz2";
+            const iframe = document.createElement("iframe");
+            iframe.src = `https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&password=false&push&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room=${roomID}`;
+            iframe.style.cssText = "width: 0px; height: 0px; position: fixed; left: -100px; top: -100px;";
+            document.body.appendChild(iframe);
+            
+            // Listener para mensagens
+            window.addEventListener("message", (event) => {
+                try {
+                    if (event.data && event.data.dataReceived && event.data.dataReceived.overlayNinja) {
+                        const data = event.data.dataReceived.overlayNinja;
+                        
+                        // Converter dados do Social Stream Ninja para nosso formato
+                        const messageData = {
+                            username: data.chatname,
+                            message: data.chatmessage,
+                            platform: data.type === 'kick' ? 'kick' : 'twitch',
+                            badges: data.chatbadges ? data.chatbadges.map(badge => ({
+                                url: badge.src,
+                                name: badge.type
+                            })) : []
+                        };
+                        
+                        addMessageToOverlay(messageData);
+                    }
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                }
+            });
+        });
+        
+        // Configuração WebSocket alternativa
+        if (urlParams.has("server")) {
+            const serverURL = urlParams.get("server");
+            const socket = new WebSocket(serverURL);
+            
+            socket.onopen = () => {
+                console.log('WebSocket connected');
+                socket.send(JSON.stringify({
+                    join: roomID,
+                    out: 3,
+                    in: 4
+                }));
+            };
+            
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    addMessageToOverlay(data);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
