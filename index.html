@@ -73,26 +73,67 @@
         .username-box {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
             position: absolute;
             top: -19px;
             left: 0px;
-            padding: 8px 10px;
+            padding: 8px 12px;
             font-weight: 600;
             z-index: 2;
             white-space: nowrap;
             max-width: 300px;
             border-radius: 5px;
+            backdrop-filter: blur(5px);
         }
 
         .kick-message .username-box {
-            background: linear-gradient(135deg, #53fc18 0%, #00a308 100%);
+            background: linear-gradient(135deg, rgba(83, 252, 24, 0.9) 0%, rgba(0, 163, 8, 0.9) 100%);
             color: #000;
         }
 
         .twitch-message .username-box {
-            background: linear-gradient(135deg, #9146ff 0%, #5c16c5 100%);
+            background: linear-gradient(135deg, rgba(145, 70, 255, 0.9) 0%, rgba(92, 22, 197, 0.9) 100%);
             color: #fff;
+        }
+
+        /* Estilo para avatar do usuário */
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            object-fit: cover;
+        }
+
+        /* Estilo para função no canal */
+        .user-role {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Cores para diferentes funções */
+        .role-broadcaster {
+            background: linear-gradient(135deg, #e91916 0%, #ff6b6b 100%);
+            color: white;
+        }
+
+        .role-moderator {
+            background: linear-gradient(135deg, #00b894 0%, #55efc4 100%);
+            color: white;
+        }
+
+        .role-vip {
+            background: linear-gradient(135deg, #fdcb6e 0%, #ffeaa7 100%);
+            color: #000;
+        }
+
+        .role-subscriber {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
         }
 
         .badges {
@@ -102,9 +143,17 @@
         }
 
         .badge {
+            height: 1.2em;
+            width: auto;
+            vertical-align: middle;
+            border-radius: 3px;
+        }
+
+        .channel-badge {
             height: 1.1em;
             width: auto;
             vertical-align: middle;
+            border-radius: 2px;
         }
 
         .source-icon {
@@ -117,7 +166,7 @@
             display: inline-block;
             width: calc(100% - 20px);
             background: rgba(23, 25, 28, 0.9);
-            padding: 24px 12px 12px 12px;
+            padding: 28px 12px 12px 12px;
             margin-top: 22px;
             margin-left: 15px;
             color: rgba(240, 240, 240, 1);
@@ -125,6 +174,7 @@
             position: relative;
             word-wrap: break-word;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
         }
 
         .text {
@@ -181,6 +231,25 @@
             background: #9146ff;
             color: #fff;
         }
+
+        /* Badges de canal */
+        .channel-badges {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            margin-left: 5px;
+        }
+
+        .donation {
+            margin-top: 5px;
+            padding: 3px 6px;
+            background: linear-gradient(135deg, #ff9f43 0%, #ffd166 100%);
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #000;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -215,8 +284,96 @@
 		if (data.type === 'kick') return 'kick';
 		if (data.type === 'twitch') return 'twitch';
 		
-		// Default para Twitch (ou ajuste conforme sua necessidade)
+		// Default para Twitch
 		return 'twitch';
+	}
+
+	// Função para obter a função do usuário no canal
+	function getUserRole(data) {
+		// Verifica se há informação de função específica
+		if (data.role) {
+			return data.role.toLowerCase();
+		}
+		
+		// Detecta função baseada nos badges
+		if (data.chatbadges && Array.isArray(data.chatbadges)) {
+			for (const badge of data.chatbadges) {
+				if (badge.src && badge.src.includes('broadcaster')) return 'broadcaster';
+				if (badge.src && badge.src.includes('moderator')) return 'moderator';
+				if (badge.src && badge.src.includes('vip')) return 'vip';
+				if (badge.src && badge.src.includes('subscriber')) return 'subscriber';
+				if (badge.src && badge.src.includes('sub')) return 'subscriber';
+			}
+		}
+		
+		// Fallback baseado em outras propriedades
+		if (data.isBroadcaster) return 'broadcaster';
+		if (data.isMod) return 'moderator';
+		if (data.isVIP) return 'vip';
+		if (data.isSubscriber) return 'subscriber';
+		
+		return 'viewer';
+	}
+
+	// Função para obter a classe CSS baseada na função
+	function getRoleClass(role) {
+		switch(role) {
+			case 'broadcaster': return 'role-broadcaster';
+			case 'moderator': return 'role-moderator';
+			case 'vip': return 'role-vip';
+			case 'subscriber': return 'role-subscriber';
+			default: return '';
+		}
+	}
+
+	// Função para obter o texto da função
+	function getRoleText(role) {
+		switch(role) {
+			case 'broadcaster': return 'STREAMER';
+			case 'moderator': return 'MOD';
+			case 'vip': return 'VIP';
+			case 'subscriber': return 'SUB';
+			default: return '';
+		}
+	}
+
+	// Função para obter a foto do usuário
+	function getUserAvatar(data) {
+		if (data.avatar && data.avatar.trim() !== '') {
+			return data.avatar;
+		}
+		
+		// Fallback para avatares padrão baseados na plataforma
+		const platform = detectPlatform(data);
+		if (platform === 'kick') {
+			return 'https://kick.com/static/favicon.png';
+		} else {
+			return 'https://static-cdn.jtvnw.net/jtv_user_pictures/0e9ed7c2-7c42-4158-a8b9-c2c03578f7d5-profile_image-70x70.png';
+		}
+	}
+
+	// Função para obter badges do canal
+	function getChannelBadges(data) {
+		let channelBadgesHTML = '';
+		
+		if (data.channelBadges && Array.isArray(data.channelBadges)) {
+			data.channelBadges.forEach(badge => {
+				if (badge.src && badge.src.trim() !== '') {
+					channelBadgesHTML += `<img class='channel-badge' src='${badge.src}' alt='channel badge' title='${badge.title || ''}' />`;
+				}
+			});
+		}
+		
+		// Também verifica badges no formato antigo
+		if (data.chatbadges && Array.isArray(data.chatbadges)) {
+			data.chatbadges.forEach(badge => {
+				if (badge.src && badge.src.includes('channel') || badge.src.includes('custom')) {
+					channelBadgesHTML += `<img class='channel-badge' src='${badge.src}' alt='channel badge' title='${badge.title || ''}' />`;
+				}
+			});
+		}
+		
+		return channelBadgesHTML;
 	}
 
 	// Função para obter a cor da plataforma
@@ -310,6 +467,13 @@
 		// Detectar plataforma
 		const platform = detectPlatform(data);
 		
+		// Obter informações do usuário
+		const userRole = getUserRole(data);
+		const roleClass = getRoleClass(userRole);
+		const roleText = getRoleText(userRole);
+		const userAvatar = getUserAvatar(data);
+		const channelBadges = getChannelBadges(data);
+		
 		// Criar um novo contêiner de mensagem
 		const messageContainer = document.createElement('div');
 		messageContainer.classList.add('message-container', `${platform}-message`);
@@ -317,12 +481,12 @@
 		const messageDiv = document.createElement('div');
 		messageDiv.classList.add('message');
 
-		// Processar badges
+		// Processar badges de chat
 		let chatbadges = "";
 		if (data.chatbadges && Array.isArray(data.chatbadges)) {
 			data.chatbadges.forEach(badge => {
 				if (typeof badge === "object" && badge.type === "img" && badge.src) {
-					chatbadges += `<img class='badge' src='${badge.src}' alt='badge' />`;
+					chatbadges += `<img class='badge' src='${badge.src}' alt='badge' title='${badge.title || ''}' />`;
 				} else if (badge.type === "svg" && badge.html) {
 					chatbadges += `<span class='badge svg'>${badge.html}</span>`;
 				}
@@ -332,11 +496,15 @@
 		// Adicionar ícone da plataforma
 		const platformIcon = getPlatformIcon(platform);
 
+		// Construir HTML da mensagem
 		messageDiv.innerHTML = `
 			<div class="username-box">
+				<img class="user-avatar" src="${userAvatar}" alt="${data.chatname}'s avatar" onerror="this.src='https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg'" />
 				${platformIcon}
 				<span>${data.chatname}</span>
+				${roleText ? `<span class="user-role ${roleClass}">${roleText}</span>` : ''}
 				${chatbadges ? `<span class="badges">${chatbadges}</span>` : ''}
+				${channelBadges ? `<span class="channel-badges">${channelBadges}</span>` : ''}
 			</div>
 			<div class="text">${data.chatmessage || ''}</div>
 			${(data.donation || data.hasDonation) ? `<div class="donation">${(data.donation || data.hasDonation)}</div>` : ''}
