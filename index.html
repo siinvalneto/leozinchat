@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSN Chat Overlay</title>
+
+<title>SSN Advanced Chat Overlay</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300..800&display=swap" rel="stylesheet">
 
@@ -20,31 +21,37 @@ html,body{
 
 #chat-container{
     padding:20px;
-    max-width:420px;
-    height:100%;
-    overflow:hidden;
+    max-width:440px;
 }
 
+/* animações */
 .message-container{
     margin-bottom:12px;
-    animation:slideIn .25s ease forwards;
+    animation:in .3s ease forwards;
+}
+.fade-out{
+    animation:out .4s ease forwards;
 }
 
-@keyframes slideIn{
-    from{opacity:0;transform:translateY(10px)}
+@keyframes in{
+    from{opacity:0;transform:translateY(12px)}
     to{opacity:1;transform:translateY(0)}
+}
+@keyframes out{
+    to{opacity:0;transform:translateY(-10px)}
 }
 
 .message{
     background:rgba(25,25,25,.95);
-    border-left:4px solid #999;
+    border-left:4px solid #888;
     padding:12px;
-    border-radius:0 10px 10px 0;
+    border-radius:0 12px 12px 0;
     color:#fff;
 }
 
-.twitch-message .message{border-color:#9146FF}
-.kick-message .message{border-color:#53FC18}
+/* plataformas */
+.twitch .message{border-color:#9146FF}
+.kick .message{border-color:#53FC18}
 
 .user-info{
     display:flex;
@@ -53,7 +60,7 @@ html,body{
     margin-bottom:6px;
 }
 
-.username-wrapper{
+.username{
     padding:4px 10px;
     border-radius:20px;
     font-weight:600;
@@ -61,50 +68,22 @@ html,body{
     background:#444;
 }
 
-.broadcaster .username-wrapper{background:#ff0000;color:#fff}
-.moderator .username-wrapper{background:#00ff00;color:#000}
-.vip .username-wrapper{background:#ffd700;color:#000}
-.subscriber .username-wrapper{background:#800080;color:#fff}
+/* cargos */
+.broadcaster .username{background:#ff0000}
+.moderator .username{background:#00ff00;color:#000}
+.vip .username{background:#ffd700;color:#000}
+.subscriber .username{background:#800080}
 
-.badges{
-    display:flex;
-    gap:4px;
-}
+/* badges */
+.badges{display:flex;gap:4px}
+.badge{width:18px;height:18px}
 
-.badge{
+/* logos */
+.platform-logo{
     width:18px;
     height:18px;
 }
-
-.platform-icon{
-    width:16px;
-    height:16px;
-    font-size:10px;
-    font-weight:bold;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-radius:3px;
-}
-
-.twitch-icon{background:#9146FF;color:#fff}
-.kick-icon{background:#53FC18;color:#000}
-
-.message-text{
-    font-size:14px;
-    line-height:1.4;
-}
-
-.event-message{
-    background:rgba(255,215,0,.15);
-    border:1px solid #ffd700;
-    color:#ffd700;
-    padding:10px;
-    border-radius:8px;
-    margin-bottom:10px;
-    text-align:center;
-    font-weight:bold;
-}
+.message-text{font-size:14px;line-height:1.4}
 </style>
 </head>
 
@@ -112,15 +91,16 @@ html,body{
 <div id="chat-container"></div>
 
 <script>
-const chatContainer=document.getElementById("chat-container");
+const chat=document.getElementById("chat-container");
 const params=new URLSearchParams(location.search);
-const roomID=params.get("session")||"default";
 
-const BADGES={
-    broadcaster:"https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1",
-    moderator:"https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1",
-    vip:"https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/1",
-    subscriber:"https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/1"
+const SESSION=params.get("session")||"default";
+const DURATION=(params.get("duration")||10)*1000;
+const PLATFORMS=params.get("platforms")||"both";
+
+const LOGOS={
+    twitch:"https://static-cdn.jtvnw.net/ttv-boxart/Twitch.png",
+    kick:"https://kick.com/favicon.ico"
 };
 
 function detectPlatform(d){
@@ -146,39 +126,42 @@ function renderBadges(badges){
     }</div>`;
 }
 
-function addMessage(data){
-    if(!data.chatmessage && !data.event)return;
+function addMessage(d){
+    if(!d.chatmessage)return;
 
-    if(data.event){
-        const e=document.createElement("div");
-        e.className="event-message";
-        e.textContent=data.event;
-        chatContainer.appendChild(e);
-        return;
-    }
+    const platform=detectPlatform(d);
+    if(PLATFORMS!=="both" && platform!==PLATFORMS)return;
 
-    const platform=detectPlatform(data);
-    const role=detectRole(data.chatbadges);
-    const msg=document.createElement("div");
+    const role=detectRole(d.chatbadges);
+    const color=d.color||"#ffffff";
 
-    msg.className=`message-container ${platform}-message ${role}`;
-    msg.innerHTML=`
-        <div class="message">
-            <div class="user-info">
-                <div class="platform-icon ${platform}-icon">${platform[0].toUpperCase()}</div>
-                <div class="username-wrapper">${data.chatname||"User"}</div>
-                ${renderBadges(data.chatbadges)}
+    const el=document.createElement("div");
+    el.className=`message-container ${platform} ${role}`;
+
+    el.innerHTML=`
+    <div class="message">
+        <div class="user-info">
+            <img class="platform-logo" src="${LOGOS[platform]}">
+            <div class="username" style="color:${color}">
+                ${d.chatname||"User"}
             </div>
-            <div class="message-text">${data.chatmessage||""}</div>
+            ${renderBadges(d.chatbadges)}
         </div>
-    `;
+        <div class="message-text">${d.chatmessage}</div>
+    </div>`;
 
-    chatContainer.appendChild(msg);
-    msg.scrollIntoView({behavior:"smooth",block:"end"});
+    chat.appendChild(el);
+    el.scrollIntoView({behavior:"smooth",block:"end"});
+
+    setTimeout(()=>{
+        el.classList.add("fade-out");
+        setTimeout(()=>el.remove(),400);
+    },DURATION);
 }
 
+/* SSN iframe */
 const iframe=document.createElement("iframe");
-iframe.src=`https://vdo.socialstream.ninja/?ln&push&novideo&noaudio&cleanoutput&room=${roomID}`;
+iframe.src=`https://vdo.socialstream.ninja/?ln&push&novideo&noaudio&cleanoutput&room=${SESSION}`;
 iframe.style.cssText="width:0;height:0;position:fixed;left:-100px;top:-100px";
 document.body.appendChild(iframe);
 
