@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat Overlay - Social Stream Ninja</title>
+<title>overlay do Leo </title>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
@@ -26,7 +26,6 @@ html, body {
     gap: 12px;
 }
 
-/* MESSAGE CARD */
 .message {
     background: linear-gradient(135deg, #0f0f0f, #1a1a1a);
     border-radius: 14px;
@@ -36,7 +35,6 @@ html, body {
     box-shadow: 0 10px 30px rgba(0,0,0,.4);
 }
 
-/* HEADER */
 .header {
     display: flex;
     align-items: center;
@@ -51,16 +49,12 @@ html, body {
     text-transform: uppercase;
     opacity: 0.6;
 }
-
-/* MESSAGE TEXT */
 .text {
     font-size: 0.95rem;
     line-height: 1.35;
     word-break: break-word;
     margin-top: 4px;
 }
-
-/* PLATFORM COLORS */
 .message.twitch {
     border-left: 4px solid #9146FF;
 }
@@ -69,7 +63,6 @@ html, body {
     border-left: 4px solid #3CFF00;
 }
 
-/* ANIMATION */
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -92,17 +85,11 @@ const urlParams = new URLSearchParams(window.location.search);
 
 const session = urlParams.get("session") || "";
 const password = urlParams.get("password") || "false";
-
-/* ===========================
-   FIX PARA MENSAGENS QUEBRADAS
-=========================== */
 let lastUser = null;
 let lastMessageElement = null;
 
 function processData(data) {
     if (!data) return;
-
-    // Quando só vem o texto (mensagem fragmentada)
     if (data.chatmessage && !data.chatname && lastMessageElement) {
         const text = document.createElement("div");
         text.className = "text";
@@ -110,8 +97,6 @@ function processData(data) {
         lastMessageElement.appendChild(text);
         return;
     }
-
-    // Se não tiver nome OU mensagem, ignora
     if (!data.chatmessage || !data.chatname) return;
 
     const platform = (data.type || "unknown").toLowerCase();
@@ -132,15 +117,10 @@ function processData(data) {
     lastUser = data.chatname;
     lastMessageElement = msg;
 
-    // Limite de mensagens
     if (chat.children.length > 8) {
         chat.removeChild(chat.firstChild);
     }
 }
-
-/* ===========================
-   IFRAME SOCIAL STREAM NINJA
-=========================== */
 const iframe = document.createElement("iframe");
 
 iframe.src =
@@ -161,10 +141,6 @@ iframe.style.left = "-100px";
 iframe.style.top = "-100px";
 
 document.body.appendChild(iframe);
-
-/* ===========================
-   RECEBENDO EVENTOS
-=========================== */
 window.addEventListener("message", (e) => {
     if (e.source !== iframe.contentWindow) return;
     if (e.data?.dataReceived?.overlayNinja) {
@@ -174,3 +150,4 @@ window.addEventListener("message", (e) => {
 </script>
 </body>
 </html>
+
