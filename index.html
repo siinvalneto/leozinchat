@@ -1,590 +1,184 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Overlay</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300..800&display=swap');
+<meta charset="UTF-8">
+<title>Chat Overlay</title>
 
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: rgba(10, 22, 40, 0);
-            font-family: 'Host Grotesk', sans-serif;
-        }
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;600;800&display=swap');
 
-        #chat-container {
-            padding: 25px;
-            max-width: 350px;
-            height: 100%;
-            overflow-y: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            margin: auto;
-            scroll-behavior: smooth;
-        }
+html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: 'Host Grotesk', sans-serif;
+}
 
-        #chat-container::-webkit-scrollbar {
-            display: none;
-        }
-        
-        .small-overlay #chat-container {
-            transform: scale(0.6);
-        }
-        .large-overlay #chat-container {
-            transform: scale(1.2);
-        }
+#chat-container {
+    width: 420px;
+    padding: 20px;
+}
 
-        .message-container {
-            margin-bottom: 10px;
-            opacity: 0;
-            transform: translateX(-20px);
-            animation: slideFadeIn 0.5s ease forwards;
-        }
+/* ===================== MENSAGEM ===================== */
 
-        /* Estilos específicos para cada plataforma */
-        .kick-message .message {
-            background: rgba(23, 25, 28, 0.9);
-            border-left: 4px solid #53fc18; /* Verde do Kick */
-        }
+.message-container {
+    margin-bottom: 18px;
+    animation: slideIn 0.4s ease forwards;
+}
 
-        .twitch-message .message {
-            background: rgba(23, 25, 28, 0.9);
-            border-left: 4px solid #9146ff; /* Roxo da Twitch */
-        }
+.message {
+    background: rgba(15,15,18,0.92);
+    border-left: 5px solid var(--platform-color);
+    border-radius: 10px;
+    padding: 18px 14px 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,.6);
+}
 
-        .event-message {
-            background: rgba(50, 50, 70, 1);
-            padding: 10px;
-            border-radius: 10px;
-            color: #ffd700;
-            font-weight: bold;
-            margin-bottom: 10px;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: slideFadeInEvent 0.6s ease forwards;
-        }
+/* ===================== USERNAME ===================== */
 
-        /* Estilos para username box com cores de plataforma */
-        .username-box {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            position: absolute;
-            top: -19px;
-            left: 0px;
-            padding: 8px 12px;
-            font-weight: 600;
-            z-index: 2;
-            white-space: nowrap;
-            max-width: 300px;
-            border-radius: 5px;
-            backdrop-filter: blur(5px);
-        }
+.username-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 0.95em;
+    color: var(--name-color);
+}
 
-        .kick-message .username-box {
-            background: linear-gradient(135deg, rgba(83, 252, 24, 0.9) 0%, rgba(0, 163, 8, 0.9) 100%);
-            color: #000;
-        }
+/* ===================== BADGES ===================== */
 
-        .twitch-message .username-box {
-            background: linear-gradient(135deg, rgba(145, 70, 255, 0.9) 0%, rgba(92, 22, 197, 0.9) 100%);
-            color: #fff;
-        }
+.badges img {
+    height: 16px;
+}
 
-        /* Estilo para avatar do usuário */
-        .user-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            object-fit: cover;
-        }
+/* ===================== TEXTO ===================== */
 
-        /* Estilo para função no canal */
-        .user-role {
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 0.75em;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+.text {
+    color: #eee;
+    font-size: 0.9em;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
 
-        /* Cores para diferentes funções */
-        .role-broadcaster {
-            background: linear-gradient(135deg, #e91916 0%, #ff6b6b 100%);
-            color: white;
-        }
+/* ===================== PLATAFORMAS ===================== */
 
-        .role-moderator {
-            background: linear-gradient(135deg, #00b894 0%, #55efc4 100%);
-            color: white;
-        }
+.platform-twitch { --platform-color: #9146ff; }
+.platform-kick   { --platform-color: #53fc18; }
 
-        .role-vip {
-            background: linear-gradient(135deg, #fdcb6e 0%, #ffeaa7 100%);
-            color: #000;
-        }
+/* ===================== DESTAQUES ===================== */
 
-        .role-subscriber {
-            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
-            color: white;
-        }
+.role-mod .message {
+    border-left-color: #ff2e2e;
+    box-shadow: 0 0 18px rgba(255,46,46,.6);
+}
 
-        .badges {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-        }
+.role-vip .message {
+    border-left-color: #ff6ad5;
+}
 
-        .badge {
-            height: 1.2em;
-            width: auto;
-            vertical-align: middle;
-            border-radius: 3px;
-        }
+.role-sub .message {
+    border-left-color: gold;
+}
 
-        .channel-badge {
-            height: 1.1em;
-            width: auto;
-            vertical-align: middle;
-            border-radius: 2px;
-        }
+.role-owner .message {
+    border-left-color: red;
+    box-shadow: 0 0 25px rgba(255,0,0,.8);
+}
 
-        .source-icon {
-            height: 1.1em;
-            width: auto;
-            vertical-align: middle;
-        }
+/* ===================== ANIMAÇÃO ===================== */
 
-        .message {
-            display: inline-block;
-            width: calc(100% - 20px);
-            background: rgba(23, 25, 28, 0.9);
-            padding: 28px 12px 12px 12px;
-            margin-top: 22px;
-            margin-left: 15px;
-            color: rgba(240, 240, 240, 1);
-            border-radius: 0 8px 8px 0;
-            position: relative;
-            word-wrap: break-word;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(5px);
-        }
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-15px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+</style>
 
-        .text {
-            font-size: clamp(0.85em, 2.5vw, 1em);
-            line-height: 1.4;
-        }
-        
-        @keyframes slideFadeIn {
-            0% {
-                opacity: 0;
-                transform: translateX(-30px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes slideFadeInEvent {
-            0% {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .text img {
-            max-width: 1.5em;
-            max-height: 1.5em;
-            vertical-align: middle;
-        }
-
-        /* Emojis personalizados para plataformas */
-        .platform-indicator {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            margin-right: 4px;
-            font-size: 0.8em;
-            border-radius: 3px;
-        }
-
-        .kick-indicator {
-            background: #53fc18;
-            color: #000;
-        }
-
-        .twitch-indicator {
-            background: #9146ff;
-            color: #fff;
-        }
-
-        /* Badges de canal */
-        .channel-badges {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            margin-left: 5px;
-        }
-
-        .donation {
-            margin-top: 5px;
-            padding: 3px 6px;
-            background: linear-gradient(135deg, #ff9f43 0%, #ffd166 100%);
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.9em;
-            color: #000;
-            display: inline-block;
-        }
-    </style>
+<script src="./chroma.min.cjs"></script>
 </head>
+
 <body>
-    <div id="chat-container"></div>
+<div id="chat-container"></div>
+
 <script>
-	const chatContainer = document.getElementById('chat-container');
-	
-	// Parameters for Social Stream Ninja
-	const urlParams = new URLSearchParams(window.location.search);
-	const roomID = urlParams.get("session") || "7RUWtGBfz2";
-	const password = "false";
-	const featuredMode = false;
+const chat = document.getElementById("chat-container");
+const params = new URLSearchParams(window.location.search);
+const ROOM = params.get("session") || "4DP7Stjuew";
+const SERVER = "wss://io.socialstream.ninja";
 
-	// Função para detectar a plataforma da mensagem
-	function detectPlatform(data) {
-		// Verifica se há informação explícita de plataforma
-		if (data.type) {
-			if (data.type.toLowerCase().includes('kick')) return 'kick';
-			if (data.type.toLowerCase().includes('twitch')) return 'twitch';
-		}
-		
-		// Verifica badges específicos de cada plataforma
-		if (data.chatbadges && Array.isArray(data.chatbadges)) {
-			for (const badge of data.chatbadges) {
-				if (badge.src && badge.src.includes('kick.com')) return 'kick';
-				if (badge.src && badge.src.includes('twitch.tv')) return 'twitch';
-				if (badge.src && badge.src.includes('badges.twitch')) return 'twitch';
-			}
-		}
-		
-		// Fallback baseado no tipo de evento
-		if (data.type === 'kick') return 'kick';
-		if (data.type === 'twitch') return 'twitch';
-		
-		// Default para Twitch
-		return 'twitch';
-	}
+let socket;
 
-	// Função para obter a função do usuário no canal
-	function getUserRole(data) {
-		// Verifica se há informação de função específica
-		if (data.role) {
-			return data.role.toLowerCase();
-		}
-		
-		// Detecta função baseada nos badges
-		if (data.chatbadges && Array.isArray(data.chatbadges)) {
-			for (const badge of data.chatbadges) {
-				if (badge.src && badge.src.includes('broadcaster')) return 'broadcaster';
-				if (badge.src && badge.src.includes('moderator')) return 'moderator';
-				if (badge.src && badge.src.includes('vip')) return 'vip';
-				if (badge.src && badge.src.includes('subscriber')) return 'subscriber';
-				if (badge.src && badge.src.includes('sub')) return 'subscriber';
-			}
-		}
-		
-		// Fallback baseado em outras propriedades
-		if (data.isBroadcaster) return 'broadcaster';
-		if (data.isMod) return 'moderator';
-		if (data.isVIP) return 'vip';
-		if (data.isSubscriber) return 'subscriber';
-		
-		return 'viewer';
-	}
+/* ===================== CONEXÃO ===================== */
 
-	// Função para obter a classe CSS baseada na função
-	function getRoleClass(role) {
-		switch(role) {
-			case 'broadcaster': return 'role-broadcaster';
-			case 'moderator': return 'role-moderator';
-			case 'vip': return 'role-vip';
-			case 'subscriber': return 'role-subscriber';
-			default: return '';
-		}
-	}
+function connect() {
+    socket = new WebSocket(SERVER);
 
-	// Função para obter o texto da função
-	function getRoleText(role) {
-		switch(role) {
-			case 'broadcaster': return 'STREAMER';
-			case 'moderator': return 'MOD';
-			case 'vip': return 'VIP';
-			case 'subscriber': return 'SUB';
-			default: return '';
-		}
-	}
+    socket.onopen = () => {
+        socket.send(JSON.stringify({ join: ROOM, out: 3, in: 4 }));
+    };
 
-	// Função para obter a foto do usuário
-	function getUserAvatar(data) {
-		if (data.avatar && data.avatar.trim() !== '') {
-			return data.avatar;
-		}
-		
-		// Fallback para avatares padrão baseados na plataforma
-		const platform = detectPlatform(data);
-		if (platform === 'kick') {
-			return 'https://kick.com/static/favicon.png';
-		} else {
-			return 'https://static-cdn.jtvnw.net/jtv_user_pictures/0e9ed7c2-7c42-4158-a8b9-c2c03578f7d5-profile_image-70x70.png';
-		}
-	}
+    socket.onmessage = e => {
+        const data = JSON.parse(e.data);
+        renderMessage(data);
+    };
 
-	// Função para obter badges do canal
-	function getChannelBadges(data) {
-		let channelBadgesHTML = '';
-		
-		if (data.channelBadges && Array.isArray(data.channelBadges)) {
-			data.channelBadges.forEach(badge => {
-				if (badge.src && badge.src.trim() !== '') {
-					channelBadgesHTML += `<img class='channel-badge' src='${badge.src}' alt='channel badge' title='${badge.title || ''}' />`;
-				}
-			});
-		}
-		
-		// Também verifica badges no formato antigo
-		if (data.chatbadges && Array.isArray(data.chatbadges)) {
-			data.chatbadges.forEach(badge => {
-				if (badge.src && badge.src.includes('channel') || badge.src.includes('custom')) {
-					channelBadgesHTML += `<img class='channel-badge' src='${badge.src}' alt='channel badge' title='${badge.title || ''}' />`;
-				}
-			});
-		}
-		
-		return channelBadgesHTML;
-	}
+    socket.onclose = () => setTimeout(connect, 2000);
+}
 
-	// Função para obter a cor da plataforma
-	function getPlatformColor(platform) {
-		return platform === 'kick' ? '#53fc18' : '#9146ff';
-	}
+/* ===================== DETECÇÕES ===================== */
 
-	// Função para obter o ícone da plataforma
-	function getPlatformIcon(platform) {
-		if (platform === 'kick') {
-			return '<span class="platform-indicator kick-indicator">K</span>';
-		} else {
-			return '<span class="platform-indicator twitch-indicator">T</span>';
-		}
-	}
+function detectPlatform(data) {
+    if (data.type?.includes("kick")) return "kick";
+    return "twitch";
+}
 
-	// Função para aplicar o tamanho do overlay
-	function applyOverlaySize() {
-		const size = urlParams.get('size');
-		document.body.classList.remove("small-overlay", "large-overlay");
-		if (size === "small") {
-			document.body.classList.add("small-overlay");
-		} else if (size === "large") {
-			document.body.classList.add("large-overlay");
-		}
-	}
+function detectRole(data) {
+    if (!data.chatbadges) return "";
+    const badges = data.chatbadges.map(b => b.src || "").join(" ");
+    if (badges.includes("broadcaster")) return "role-owner";
+    if (badges.includes("moderator")) return "role-mod";
+    if (badges.includes("vip")) return "role-vip";
+    if (badges.includes("subscriber")) return "role-sub";
+    return "";
+}
 
-	function isFullyVisible(element) {
-		const containerRect = chatContainer.getBoundingClientRect();
-		const elementRect = element.getBoundingClientRect();
-		return elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
-	}
+/* ===================== RENDER ===================== */
 
-	function removeCutOffMessages() {
-		let firstMessage = chatContainer.firstElementChild;
-		while (firstMessage && !isFullyVisible(firstMessage)) {
-			chatContainer.removeChild(firstMessage);
-			firstMessage = chatContainer.firstElementChild;
-		}
-	}
+function renderMessage(data) {
+    if (!data.chatname || !data.chatmessage) return;
 
-	function autoScroll() {
-		const lastMessage = chatContainer.lastElementChild;
-		if (lastMessage) {
-			lastMessage.scrollIntoView({ behavior: "instant", block: "end" });
-			setTimeout(() => {
-				lastMessage.scrollIntoView({ behavior: "instant", block: "end" });
-				removeCutOffMessages();
-			}, 50);
-		}
-	}
+    const platform = detectPlatform(data);
+    const role = detectRole(data);
 
-	const observer = new MutationObserver(() => {
-		autoScroll();
-	});
-	observer.observe(chatContainer, { childList: true, subtree: true });
+    const userColor = data.chatcolor || "#ffffff";
 
-	function addEventToOverlay(data) {
-		const eventDiv = document.createElement('div');
-		eventDiv.classList.add('event-message');
-		let eventText = '';
+    let badgesHTML = "";
+    (data.chatbadges || []).forEach(b => {
+        if (b.src) badgesHTML += `<img src="${b.src}">`;
+    });
 
-		if (data.type === 'follow') {
-			eventText = `${data.chatname} just followed!`;
-		} else if (data.type === 'subscription') {
-			eventText = `${data.chatname} subscribed!`;
-		} else if (data.type === 'donation') {
-			eventText = `${data.chatname} donated ${data.amount || ''}!`;
-		}
+    const el = document.createElement("div");
+    el.className = `message-container platform-${platform} ${role}`;
+    el.style.setProperty("--name-color", userColor);
 
-		eventDiv.innerHTML = `<div>${eventText}</div>`;
-		chatContainer.appendChild(eventDiv);
-	}
+    el.innerHTML = `
+        <div class="message">
+            <div class="username-box">
+                <span>${data.chatname}</span>
+                <span class="badges">${badgesHTML}</span>
+            </div>
+            <div class="text">${data.chatmessage}</div>
+        </div>
+    `;
 
-	function addMessageToOverlay(data) {
-		if (!data || !data.chatname || !data.chatmessage) {
-			console.error("Invalid message data", data);
-			return;
-		}
+    chat.appendChild(el);
 
-		// Skip meta-only messages
-		if (!data.chatname && data.meta) {
-			return;
-		}
+    while (chat.children.length > 40) {
+        chat.removeChild(chat.firstChild);
+    }
+}
 
-		if (['follow', 'subscription', 'donation'].includes(data.type)) {
-			addEventToOverlay(data);
-			return;
-		}
-
-		// Detectar plataforma
-		const platform = detectPlatform(data);
-		
-		// Obter informações do usuário
-		const userRole = getUserRole(data);
-		const roleClass = getRoleClass(userRole);
-		const roleText = getRoleText(userRole);
-		const userAvatar = getUserAvatar(data);
-		const channelBadges = getChannelBadges(data);
-		
-		// Criar um novo contêiner de mensagem
-		const messageContainer = document.createElement('div');
-		messageContainer.classList.add('message-container', `${platform}-message`);
-		
-		const messageDiv = document.createElement('div');
-		messageDiv.classList.add('message');
-
-		// Processar badges de chat
-		let chatbadges = "";
-		if (data.chatbadges && Array.isArray(data.chatbadges)) {
-			data.chatbadges.forEach(badge => {
-				if (typeof badge === "object" && badge.type === "img" && badge.src) {
-					chatbadges += `<img class='badge' src='${badge.src}' alt='badge' title='${badge.title || ''}' />`;
-				} else if (badge.type === "svg" && badge.html) {
-					chatbadges += `<span class='badge svg'>${badge.html}</span>`;
-				}
-			});
-		}
-
-		// Adicionar ícone da plataforma
-		const platformIcon = getPlatformIcon(platform);
-
-		// Construir HTML da mensagem
-		messageDiv.innerHTML = `
-			<div class="username-box">
-				<img class="user-avatar" src="${userAvatar}" alt="${data.chatname}'s avatar" onerror="this.src='https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg'" />
-				${platformIcon}
-				<span>${data.chatname}</span>
-				${roleText ? `<span class="user-role ${roleClass}">${roleText}</span>` : ''}
-				${chatbadges ? `<span class="badges">${chatbadges}</span>` : ''}
-				${channelBadges ? `<span class="channel-badges">${channelBadges}</span>` : ''}
-			</div>
-			<div class="text">${data.chatmessage || ''}</div>
-			${(data.donation || data.hasDonation) ? `<div class="donation">${(data.donation || data.hasDonation)}</div>` : ''}
-		`;
-
-		messageContainer.appendChild(messageDiv);
-		chatContainer.appendChild(messageContainer);
-
-		// Limpar mensagens antigas se houver muitas
-		const maxMessages = 50;
-		while (chatContainer.children.length > maxMessages) {
-			chatContainer.removeChild(chatContainer.firstChild);
-		}
-	}
-	
-	const iframe = document.createElement("iframe");
-	iframe.src = featuredMode
-		? `https://vdo.socialstream.ninja/?ln&password=${password}&salt=vdo.ninja&label=overlay&exclude=${roomID}&scene&novideo&noaudio&cleanoutput&room=${roomID}`
-		: `https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&password=${password}&push&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room=${roomID}`;
-
-	iframe.style.cssText = "width: 0px; height: 0px; position: fixed; left: -100px; top: -100px;";
-	document.body.appendChild(iframe);
-
-	window.addEventListener("message", (event) => {
-		if (event.source !== iframe.contentWindow) return;
-		if (event.data.dataReceived && event.data.dataReceived.overlayNinja) {
-			addMessageToOverlay(event.data.dataReceived.overlayNinja);
-		}
-	});
-
-	document.addEventListener('DOMContentLoaded', () => {
-		applyOverlaySize();
-	});
-		
-	// WebSocket mode alternative
-	var conCon = 1;
-	var socketserver = false;
-	var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja";
-
-	function setupSocket(){
-		socketserver.onclose = function (){
-			setTimeout(function(){
-				conCon+=1;
-				socketserver = new WebSocket(serverURL);
-				setupSocket();
-			},100*conCon);
-		};
-		socketserver.onopen = function (){
-			conCon = 1;
-			socketserver.send(JSON.stringify({"join":roomID, "out":3, "in":4}));
-		};
-		socketserver.addEventListener('message', function (event) {
-			var resp = false
-			if (event.data){
-				var data = JSON.parse(event.data);
-				addMessageToOverlay(data);
-				if (data.get){
-					var ret = {};
-					ret.callback = {};
-					ret.callback.get = data.get
-					ret.callback.result = true;
-					socketserver.send(JSON.stringify(ret));
-				}
-			}
-		});
-	}
-	
-	if (urlParams.has("server") || urlParams.has("server2")){
-		serverURL = urlParams.get("server") ||  urlParams.get("server2") || serverURL;
-		socketserver = new WebSocket(serverURL);
-		setupSocket();
-	}
-
-	// Limpar chat a cada 10 minutos para evitar acúmulo excessivo
-	setInterval(() => {
-		const maxMessages = 30;
-		while (chatContainer.children.length > maxMessages) {
-			chatContainer.removeChild(chatContainer.firstChild);
-		}
-	}, 600000); // 10 minutos
+connect();
 </script>
 </body>
 </html>
