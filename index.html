@@ -1,147 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat Overlay | Social Stream Ninja</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Chat Overlay - Social Stream Ninja</title>
 
 <style>
-/* =========================
-   RESET / BASE
-========================= */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
 html, body {
     margin: 0;
     padding: 0;
-    width: 100%;
-    height: 100%;
     background: transparent;
-    overflow: hidden;
     font-family: 'Montserrat', sans-serif;
+    overflow: hidden;
 }
 
 #chat {
     position: fixed;
     bottom: 20px;
     left: 20px;
-    width: 380px;
+    width: 360px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 
-/* =========================
-   MESSAGE CARD
-========================= */
-
+/* MESSAGE CARD */
 .message {
-    position: relative;
-    background: rgba(18, 18, 18, 0.92);
-    border-radius: 12px;
-    padding: 14px 14px 12px 14px;
-    color: #fff;
+    background: linear-gradient(135deg, #0f0f0f, #1a1a1a);
+    border-radius: 14px;
+    padding: 10px 14px 12px;
+    color: white;
     animation: slideIn 0.35s ease forwards;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
 }
 
-/* Glow lateral */
-.message::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 10px;
-    width: 4px;
-    height: calc(100% - 20px);
-    background: currentColor;
-    opacity: 0.85;
-    border-radius: 4px;
-}
-
-/* =========================
-   HEADER (NICK + PLATFORM)
-========================= */
-
+/* HEADER */
 .header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 600;
     margin-bottom: 6px;
-    font-weight: 700;
-    font-size: 0.95em;
 }
 
 .platform {
-    font-size: 0.75em;
-    opacity: 0.75;
-    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    opacity: 0.6;
 }
 
-/* =========================
-   MESSAGE TEXT
-========================= */
-
+/* MESSAGE TEXT */
 .text {
-    font-size: 0.95em;
-    line-height: 1.4;
-    word-wrap: break-word;
+    font-size: 0.95rem;
+    line-height: 1.35;
+    word-break: break-word;
+    margin-top: 4px;
 }
 
-.text img {
-    max-height: 1.4em;
-    vertical-align: middle;
+/* PLATFORM COLORS */
+.message.twitch {
+    border-left: 4px solid #9146FF;
 }
 
-/* =========================
-   PLATFORM COLORS
-========================= */
+.message.kick {
+    border-left: 4px solid #3CFF00;
+}
 
-.twitch { color: #9146FF; }
-.kick { color: #53FC18; }
-.youtube { color: #FF3D3D; }
-.facebook { color: #1877F2; }
-.tiktok { color: #25F4EE; }
-
-/* =========================
-   ANIMATION
-========================= */
-
+/* ANIMATION */
 @keyframes slideIn {
     from {
         opacity: 0;
-        transform: translateX(-20px);
+        transform: translateY(12px);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 </style>
 </head>
 
 <body>
-
 <div id="chat"></div>
 
 <script>
+const chat = document.getElementById("chat");
 const urlParams = new URLSearchParams(window.location.search);
-const sessionID = urlParams.get("session");
+
+const session = urlParams.get("session") || "";
 const password = urlParams.get("password") || "false";
 
-const chat = document.getElementById("chat");
-
-/* =========================
-   MESSAGE HANDLER
-========================= */
+/* ===========================
+   FIX PARA MENSAGENS QUEBRADAS
+=========================== */
+let lastUser = null;
+let lastMessageElement = null;
 
 function processData(data) {
+    if (!data) return;
+
+    // Quando só vem o texto (mensagem fragmentada)
+    if (data.chatmessage && !data.chatname && lastMessageElement) {
+        const text = document.createElement("div");
+        text.className = "text";
+        text.innerHTML = data.chatmessage;
+        lastMessageElement.appendChild(text);
+        return;
+    }
+
+    // Se não tiver nome OU mensagem, ignora
     if (!data.chatmessage || !data.chatname) return;
 
-    const platform = (data.type || "").toLowerCase();
+    const platform = (data.type || "unknown").toLowerCase();
+
     const msg = document.createElement("div");
     msg.className = `message ${platform}`;
 
@@ -155,22 +129,30 @@ function processData(data) {
 
     chat.appendChild(msg);
 
-    // Limite de mensagens na tela
+    lastUser = data.chatname;
+    lastMessageElement = msg;
+
+    // Limite de mensagens
     if (chat.children.length > 8) {
         chat.removeChild(chat.firstChild);
     }
 }
 
-/* =========================
-   SOCIAL STREAM NINJA IFRAME
-========================= */
-
+/* ===========================
+   IFRAME SOCIAL STREAM NINJA
+=========================== */
 const iframe = document.createElement("iframe");
+
 iframe.src =
     "https://vdo.socialstream.ninja/?ln&salt=vdo.ninja" +
+    "&notmobile" +
     "&password=" + encodeURIComponent(password) +
-    "&solo&view=" + sessionID +
-    "&novideo&noaudio&cleanoutput&room=" + sessionID;
+    "&solo" +
+    "&view=" + session +
+    "&novideo&noaudio" +
+    "&label=overlay" +
+    "&cleanoutput" +
+    "&room=" + session;
 
 iframe.style.width = "0px";
 iframe.style.height = "0px";
@@ -180,6 +162,9 @@ iframe.style.top = "-100px";
 
 document.body.appendChild(iframe);
 
+/* ===========================
+   RECEBENDO EVENTOS
+=========================== */
 window.addEventListener("message", (e) => {
     if (e.source !== iframe.contentWindow) return;
     if (e.data?.dataReceived?.overlayNinja) {
@@ -187,6 +172,5 @@ window.addEventListener("message", (e) => {
     }
 });
 </script>
-
 </body>
 </html>
